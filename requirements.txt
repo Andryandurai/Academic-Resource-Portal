@@ -1,0 +1,4 @@
+# Hosting platforms look for a requirements file at the repository root. The real
+# dependency list lives next to the code it serves, so this is a pointer rather
+# than a copy — one file to edit, no chance of the two drifting.
+-r backend/requirements.txt

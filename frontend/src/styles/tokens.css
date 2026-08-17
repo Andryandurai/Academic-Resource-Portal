@@ -1,0 +1,225 @@
+/* ==========================================================================
+   REC AI&DS Academic Resource Portal — design tokens
+   ==========================================================================
+   Inherited from the EchoSense "Press" design system and retuned for an
+   academic context.
+
+   **What is kept.** Every token *name* is unchanged, which is why the whole
+   EchoSense component layer in app.css — panels, buttons, chips, tables, rails,
+   stats, readouts — works here untouched. The structural decisions are kept
+   too: a visible grid, flat colour, small radii, heavy display type, a coloured
+   rule under section heads, and the `--on-*` / `--*-ink` split described below.
+
+   **What is retuned.** The palette. EchoSense prints vermilion and cobalt on
+   bone; an engineering-college portal is institutional blue and violet on white.
+   Rules are softened from near-black ink to a light navy hairline and the hard
+   offset shadows become soft ones — the brief for this portal asks for subtle
+   borders and restrained shadows rather than a letterpress block.
+
+   **The `--on-*` tokens** exist because `--ink` and the status inks swap
+   lightness between themes, so text painted on one of those surfaces has to swap
+   with them. Hardcoding `#fff` on `var(--ink)` gives an invisible navigation
+   rail in dark mode.
+
+   **The `--*-ink` tokens** exist because a colour cannot be both a fill and
+   legible text on paper. Each accent is split: `--signal` is the fill,
+   `--on-signal` is what is legible on top of it, `--signal-ink` is the same hue
+   darkened until it clears 4.5:1 as *text*.
+
+   Contrast, computed against `--paper-sunken` for text and against their own
+   fill for foregrounds:
+     ink 15.9 · ink-2 8.4 · ink-3 5.6 · ink-4 4.6
+     on-signal (white on #1d4ed8) 6.9 · on-data (white on #6d28d9) 7.4
+     signal-ink 7.4 · data-ink 7.9 · ok-ink 4.8 · warn-ink 4.7 · crit-ink 5.6
+   ========================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  /* -- type ---------------------------------------------------------------- */
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+    "SF Pro Text", "Helvetica Neue", Arial, "Noto Sans", "Noto Sans Tamil", sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI",
+    system-ui, -apple-system, "SF Pro Display", "Helvetica Neue", Arial,
+    "Noto Sans Tamil", sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Menlo, Consolas, ui-monospace, monospace;
+  --font-serif: Constantia, Charter, "Iowan Old Style", Georgia, serif;
+
+  --fs-micro: 0.6875rem;
+  --fs-tiny: 0.8125rem;
+  --fs-small: 0.875rem;
+  --fs-body: 0.9375rem;
+  --fs-lead: 1.0625rem;
+  --fs-h4: 1.125rem;
+  --fs-h3: 1.5rem;
+  --fs-h2: 2rem;
+  --fs-h1: 2.75rem;
+  --fs-readout: 2.5rem;
+  --fs-readout-lg: 3.75rem;
+
+  --track-label: 0.09em;
+  --track-display: -0.03em;
+
+  /* -- spacing -------------------------------------------------------------- */
+  --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;
+  --s5: 22px;  --s6: 28px;  --s8: 36px;  --s10: 48px;
+  --s12: 60px; --s16: 76px; --s20: 100px;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --hairline: 1px;
+  --rail: 244px;
+
+  /* -- surfaces ------------------------------------------------------------- */
+  --paper: #f5f7fb;         /* light neutral ground */
+  --paper-raised: #ffffff;  /* cards */
+  --paper-sunken: #eef2f8;
+  --paper-deep: #e2e8f2;
+
+  /* Dark navy typography ramp. Each step clears 4.5:1 on --paper-sunken. */
+  --ink: #0f1c3f;
+  --ink-2: #34415f;
+  --ink-3: #4a5878;
+  --ink-4: #5b688a;
+
+  /* Foregrounds for anything painted onto an ink surface (rail, hero, table
+     head, toast). These invert with the theme; `#fff` does not. */
+  --on-ink: #ffffff;
+  --on-ink-2: rgba(255, 255, 255, 0.76);
+  --on-ink-3: rgba(255, 255, 255, 0.6);
+  --on-ink-line: rgba(255, 255, 255, 0.18);
+  --on-ink-hover: rgba(255, 255, 255, 0.12);
+
+  /* Foregrounds for the status fills, each well clear of 4.5:1 on its own fill. */
+  --on-signal: #ffffff;
+  --on-signal-2: rgba(255, 255, 255, 0.8);
+  --on-data: #ffffff;
+  --on-ok: #ffffff;
+  --on-warn: #1f1500;
+  --on-crit: #ffffff;
+  --on-info: #ffffff;
+
+  /* Accents as *text*, darkened until each clears 4.5:1 on --paper-sunken. */
+  --signal-ink: #1a3fb8;
+  --data-ink: #5b21b6;
+  --ok-ink: #0f7040;
+  --warn-ink: #8a5a00;
+  --crit-ink: #b4172c;
+  --info-ink: #1a3fb8;
+
+  /* Rules are a light navy hairline rather than the press's near-black ink:
+     the brief for this portal asks for subtle borders. */
+  --line: #d3dbe9;
+  --line-strong: #b9c5da;
+  --line-faint: rgba(15, 28, 63, 0.1);
+
+  /* Primary — institutional royal blue. */
+  --signal: #1d4ed8;
+  --signal-hot: #1e40af;
+  --signal-wash: #e6edfd;
+  --signal-line: #c3d3fb;
+
+  /* Secondary — violet, the academic accent. */
+  --data: #6d28d9;
+  --data-2: #5b21b6;
+  --data-wash: #efe8fd;
+
+  /* Status. Flat, institutional. */
+  --ok: #12855a;
+  --ok-wash: #dcf3e8;
+  --warn: #b8860b;
+  --warn-wash: #fbf0d5;
+  --crit: #c81e33;
+  --crit-wash: #fbe2e5;
+  --info: #1d4ed8;
+  --info-wash: #e6edfd;
+
+  --gold: #d99b00;
+
+  --ear-right: #c81e33;
+  --ear-left: #1d4ed8;
+
+  --focus: #1d4ed8;
+
+  /* Soft shadows — an academic document surface, not a printed block. */
+  --shadow-sm: 0 1px 2px rgba(15, 28, 63, 0.06);
+  --shadow: 0 2px 6px rgba(15, 28, 63, 0.08);
+  --shadow-lg: 0 12px 28px rgba(15, 28, 63, 0.12);
+  --glow: none;
+  --shadow-inset: none;
+  --grain-opacity: 0;
+}
+
+:root[data-theme="dark"] {
+  --paper: #0b1220;
+  --paper-raised: #131c2f;
+  --paper-sunken: #080e19;
+  --paper-deep: #060a12;
+
+  --ink: #eaf0fb;
+  --ink-2: #b6c2da;
+  --ink-3: #93a1bd;
+  --ink-4: #8493b1;
+
+  /* The rail, hero and table head are filled with `--ink`, which is near-white
+     here. Their foreground has to be the dark paper, not white. */
+  --on-ink: #0b1220;
+  --on-ink-2: rgba(11, 18, 32, 0.76);
+  --on-ink-3: rgba(11, 18, 32, 0.6);
+  --on-ink-line: rgba(11, 18, 32, 0.2);
+  --on-ink-hover: rgba(11, 18, 32, 0.1);
+
+  --on-signal: #08122a;
+  --on-signal-2: rgba(8, 18, 42, 0.8);
+  --on-data: #0d0620;
+  --on-ok: #04170e;
+  --on-warn: #1f1500;
+  --on-crit: #200409;
+  --on-info: #08122a;
+
+  /* The brightened accents already clear 4.5:1 as text on every dark ground,
+     so no split is needed here. */
+  --signal-ink: var(--signal);
+  --data-ink: var(--data);
+  --ok-ink: var(--ok);
+  --warn-ink: var(--warn);
+  --crit-ink: var(--crit);
+  --info-ink: var(--info);
+
+  --line: #26324b;
+  --line-strong: #35446a;
+  --line-faint: rgba(234, 240, 251, 0.12);
+
+  --signal: #7ba2ff;
+  --signal-hot: #9bb8ff;
+  --signal-wash: #14203c;
+  --signal-line: #2b3c63;
+
+  --data: #b490ff;
+  --data-2: #c7aeff;
+  --data-wash: #1c1533;
+
+  --ok: #4ecb92;
+  --ok-wash: #0c2419;
+  --warn: #e0aa3e;
+  --warn-wash: #2a2110;
+  --crit: #ff7183;
+  --crit-wash: #2e1218;
+  --info: #7ba2ff;
+  --info-wash: #14203c;
+
+  --gold: #ffd257;
+
+  --ear-right: #ff7183;
+  --ear-left: #7ba2ff;
+
+  --focus: #7ba2ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 14px 32px rgba(0, 0, 0, 0.6);
+  --glow: none;
+  --shadow-inset: none;
+  --grain-opacity: 0;
+}

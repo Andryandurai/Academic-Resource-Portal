@@ -1,0 +1,24 @@
+# REC AI&DS Academic Resource Portal — backend dependencies
+#
+# Pinned to compatible ranges rather than exact versions so security patches
+# arrive without a manual bump, while a major release cannot land unreviewed.
+
+Django>=5.1,<6.0
+djangorestframework>=3.15,<4.0
+djangorestframework-simplejwt>=5.3,<6.0
+django-cors-headers>=4.6,<5.0
+django-filter>=24.3
+
+# Password hashing. Django's default PBKDF2 needs nothing extra; bcrypt is
+# required only so accounts migrated from the previous Next.js/bcryptjs stack
+# keep working with their existing hashes (see accounts/hashers.py).
+bcrypt>=4.2
+
+# Production
+gunicorn>=23.0
+whitenoise>=6.8
+psycopg[binary]>=3.2          # PostgreSQL driver, production only
+
+# Testing
+pytest>=8.3
+pytest-django>=4.9
