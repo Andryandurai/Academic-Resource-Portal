@@ -113,60 +113,48 @@ def test_logout_blacklists_the_refresh_token(api, student_user):
     assert replay.status_code == 401
 
 
-def test_registration_creates_a_student_never_an_admin(api, department):
+def test_self_registration_is_not_available(api, department):
+    """There is no public path to creating an account.
+
+    Registration was removed: the portal runs on accounts provisioned on the
+    server. The endpoint must be gone rather than merely hidden in the UI, so a
+    direct POST cannot create a third account.
+    """
     response = api.post(
         "/api/auth/register/",
-        {"name": "New Student", "email": "New.Student@rec.test", "password": "GoodPass!2026"},
+        {"name": "New Student", "email": "new.student@rec.test", "password": "GoodPass!2026"},
         format="json",
     )
-    assert response.status_code == 201
-    assert response.data["user"]["role"] == "STUDENT"
-    assert response.data["access"]
+    assert response.status_code == 404
 
     from accounts.models import User
 
-    user = User.objects.get(email="new.student@rec.test")
-    assert user.role == "STUDENT"
-    # Stored hashed, never in the clear.
-    assert user.password != "GoodPass!2026"
-    assert user.check_password("GoodPass!2026")
+    assert not User.objects.filter(email="new.student@rec.test").exists()
 
 
-def test_registration_rejects_a_duplicate_email(api, student_user):
-    response = api.post(
-        "/api/auth/register/",
-        {"name": "Impostor", "email": "student@rec.test", "password": "GoodPass!2026"},
-        format="json",
+def test_no_registration_route_is_wired(db):
+    from django.urls import NoReverseMatch, reverse
+
+    import pytest as _pytest
+
+    with _pytest.raises(NoReverseMatch):
+        reverse("register")
+
+
+def test_accounts_are_created_on_the_server_only(db, department):
+    """`create_user` still works — provisioning simply is not a public API."""
+    from accounts.models import Role, User
+
+    user = User.objects.create_user(
+        email="Provisioned@REC.test",
+        password="ServerSide!2026",
+        name="Provisioned Student",
+        role=Role.STUDENT,
+        department=department,
     )
-    assert response.status_code == 400
-    assert "email" in response.data
-
-
-def test_registration_enforces_django_password_validators(api, department):
-    response = api.post(
-        "/api/auth/register/",
-        {"name": "Weak", "email": "weak@rec.test", "password": "12345678"},
-        format="json",
-    )
-    assert response.status_code == 400
-    assert "password" in response.data
-
-
-def test_registration_honours_the_allowed_domain(api, department, settings):
-    settings.ALLOWED_STUDENT_EMAIL_DOMAIN = "rajalakshmi.edu.in"
-    rejected = api.post(
-        "/api/auth/register/",
-        {"name": "Outsider", "email": "someone@gmail.com", "password": "GoodPass!2026"},
-        format="json",
-    )
-    assert rejected.status_code == 400
-
-    accepted = api.post(
-        "/api/auth/register/",
-        {"name": "Insider", "email": "someone@rajalakshmi.edu.in", "password": "GoodPass!2026"},
-        format="json",
-    )
-    assert accepted.status_code == 201
+    assert user.email == "provisioned@rec.test"
+    assert user.check_password("ServerSide!2026")
+    assert user.password != "ServerSide!2026"
 
 
 def test_legacy_bcrypt_hash_still_authenticates(api, department):

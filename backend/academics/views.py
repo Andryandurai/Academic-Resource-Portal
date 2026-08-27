@@ -16,8 +16,14 @@ from rest_framework.views import APIView
 
 from core.permissions import IsAdminOrReadOnly
 
-from .filters import SubjectFilter
-from .models import Department, Semester, Subject
+from .filters import SubjectFilter, roman
+from .models import (
+    CourseCategory,
+    CourseType,
+    Department,
+    Semester,
+    Subject,
+)
 from .serializers import (
     DepartmentSerializer,
     SemesterSerializer,
@@ -161,6 +167,123 @@ class SubjectViewSet(viewsets.ModelViewSet):
             counts[row["resource_type"]] = row["total"]
 
         return Response(counts)
+
+    @action(detail=False, methods=["get"])
+    def facets(self, request):
+        """GET /api/subjects/facets/ — the filter options, and how many match.
+
+        Every option is derived from the catalogue itself, so the filter bar can
+        never offer a credit value, category or course type that no course has.
+        That matters here: the portal deliberately excludes non-credit, EEC and
+        project courses, so offering those as filters would give a dead option
+        that always answers "0 results".
+
+        Each facet is counted with *its own* filter lifted but every other
+        filter still applied — the standard faceted-search rule. Having picked
+        Professional Core, the category counts still show what switching to
+        Professional Elective would give, instead of zero for everything.
+        """
+        filtered = self.filter_queryset(self.get_queryset())
+
+        def counts_for(param: str, *fields: str) -> dict:
+            """Group counts over the catalogue with `param`'s own filter removed."""
+            params = request.query_params.copy()
+            params.pop(param, None)
+            filterset = self.filterset_class(
+                params, queryset=self.get_queryset(), request=request
+            )
+            queryset = filterset.qs if filterset.is_valid() else filtered
+            rows = queryset.order_by().values(*fields).annotate(total=Count("id", distinct=True))
+            return {tuple(row[f] for f in fields): row["total"] for row in rows}
+
+        # Options come from the whole catalogue so a facet never disappears
+        # mid-search; the count beside it comes from the filtered set.
+        catalogue = self.get_queryset().order_by()
+
+        department_rows = (
+            catalogue.values(
+                "semester__department_id",
+                "semester__department__code",
+                "semester__department__name",
+            )
+            .annotate(total=Count("id", distinct=True))
+            .order_by("semester__department__name")
+        )
+        department_counts = counts_for("department", "semester__department_id")
+        departments = [
+            {
+                "value": row["semester__department_id"],
+                "code": row["semester__department__code"],
+                "label": row["semester__department__name"],
+                "total": row["total"],
+                "count": department_counts.get((row["semester__department_id"],), 0),
+            }
+            for row in department_rows
+        ]
+
+        semester_counts = counts_for("semester_number", "semester__semester_number")
+        semesters = [
+            {
+                "value": row["semester__semester_number"],
+                "label": f"Semester {roman(row['semester__semester_number'])}",
+                "total": row["total"],
+                "count": semester_counts.get((row["semester__semester_number"],), 0),
+            }
+            for row in catalogue.values("semester__semester_number")
+            .annotate(total=Count("id", distinct=True))
+            .order_by("semester__semester_number")
+        ]
+
+        category_counts = counts_for("category", "category")
+        categories = [
+            {
+                "value": row["category"],
+                "label": CourseCategory(row["category"]).label,
+                "total": row["total"],
+                "count": category_counts.get((row["category"],), 0),
+            }
+            for row in catalogue.values("category")
+            .annotate(total=Count("id", distinct=True))
+            .order_by("category")
+        ]
+
+        type_counts = counts_for("course_type", "course_type")
+        course_types = [
+            {
+                "value": row["course_type"],
+                "label": CourseType(row["course_type"]).label,
+                "total": row["total"],
+                "count": type_counts.get((row["course_type"],), 0),
+            }
+            for row in catalogue.values("course_type")
+            .annotate(total=Count("id", distinct=True))
+            .order_by("course_type")
+        ]
+
+        credit_counts = counts_for("credits", "credits")
+        credits = [
+            {
+                "value": row["credits"],
+                "label": str(row["credits"]),
+                "total": row["total"],
+                "count": credit_counts.get((row["credits"],), 0),
+            }
+            for row in catalogue.values("credits")
+            .annotate(total=Count("id", distinct=True))
+            .order_by("credits")
+        ]
+
+        return Response(
+            {
+                "count": filtered.count(),
+                "total": Subject.objects.count(),
+                "departments": departments,
+                "semesters": semesters,
+                "categories": categories,
+                "course_types": course_types,
+                "credits": credits,
+            }
+        )
 
 
 class CatalogueStatsView(APIView):

@@ -131,18 +131,24 @@ def upload(name: str, data: bytes, content_type: str):
 
 @pytest.fixture
 def empty_department(db):
-    """Any department that has no syllabus yet.
+    """A department that holds no curriculum.
 
-    Chosen from the curricula rather than hardcoded: every time a department
-    gains a syllabus, a test naming it as "the empty one" silently starts
-    asserting the wrong thing. This never goes stale.
+    Several scoping tests need a department that is genuinely empty, to prove
+    that asking for it returns nothing rather than someone else's rows.
+
+    This used to pick whichever canonical department had no syllabus yet. All
+    nineteen now have one, so there is nothing left to pick and the fixture
+    creates its own. It still prefers a real empty department when the
+    surrounding fixture seeded only part of the catalogue.
     """
-    from academics.curricula import CURRICULA
-    from academics.departments import DEPARTMENTS
-    from academics.models import Department
+    from academics.models import Department, Subject
 
-    code = next(c for _n, c, _g in DEPARTMENTS if c not in CURRICULA)
-    return Department.objects.get(code=code)
+    unseeded = Department.objects.exclude(
+        id__in=Subject.objects.values("semester__department_id")
+    ).first()
+    if unseeded is not None:
+        return unseeded
+    return Department.objects.create(name="Unseeded Department (test)", code="NO-SYLLABUS")
 
 
 @pytest.fixture

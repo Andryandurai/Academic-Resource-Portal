@@ -7,7 +7,8 @@ from . import views
 urlpatterns = [
     path("login/", views.LoginView.as_view(), name="login"),
     path("admin/login/", views.AdminLoginView.as_view(), name="admin-login"),
-    path("register/", views.RegisterView.as_view(), name="register"),
+    # No self-registration route: accounts are provisioned on the server
+    # (`manage.py createadmin`), so there is no public path to creating one.
     path("token/refresh/", views.RefreshView.as_view(), name="token-refresh"),
     path("me/", views.MeView.as_view(), name="me"),
     path("logout/", views.LogoutView.as_view(), name="logout"),

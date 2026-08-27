@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from django.conf import settings
-from django.contrib.auth import authenticate, password_validation
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Role, User
+from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -65,46 +63,6 @@ class AdminLoginSerializer(LoginSerializer):
                 {"detail": self.error_messages["no_active_account"]}, code="no_active_account"
             )
         return data
-
-
-class RegisterSerializer(serializers.Serializer):
-    """Student self-registration.
-
-    Always creates a STUDENT. Administrator accounts are provisioned on the
-    server (`manage.py createadmin`), which keeps privilege escalation off the
-    public attack surface entirely.
-    """
-
-    name = serializers.CharField(max_length=150, min_length=2, trim_whitespace=True)
-    email = serializers.EmailField(max_length=254)
-    password = serializers.CharField(write_only=True, max_length=200)
-
-    def validate_email(self, value: str) -> str:
-        value = value.strip().lower()
-        domain = settings.ALLOWED_STUDENT_EMAIL_DOMAIN
-        if domain and not value.endswith(f"@{domain}"):
-            raise serializers.ValidationError(
-                f"Registration is restricted to @{domain} email addresses."
-            )
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("An account with this email address already exists.")
-        return value
-
-    def validate_password(self, value: str) -> str:
-        # Django's own validators: length, common-password list, all-numeric.
-        password_validation.validate_password(value)
-        return value
-
-    def create(self, validated_data):
-        from academics.models import Department
-
-        return User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            name=validated_data["name"].strip(),
-            role=Role.STUDENT,
-            department=Department.objects.filter(code=settings.DEPARTMENT_CODE).first(),
-        )
 
 
 class UserListSerializer(serializers.ModelSerializer):

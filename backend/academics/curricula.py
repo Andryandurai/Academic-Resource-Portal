@@ -1536,6 +1536,618 @@ FT_CURRICULUM: dict[int, dict] = {
     },
 }
 
+AERO_CURRICULUM: dict[int, dict] = {
+    1: {
+        "name": "Semester I",
+        "subjects": [
+            ("HS23111", "Technical Communication I", "HS", THEORY, 2, 0, 0, 2),
+            ("MA23112", "Algebra and Calculus", "BS", THEORY, 3, 1, 0, 4),
+            ("PH23131", "Physics of Materials", "BS", LAB, 3, 0, 2, 4),
+            ("GE23111", "Engineering Graphics", "ES", LAB, 2, 0, 4, 4),
+            ("GE23117", "Heritage of Tamils", "HS", THEORY, 1, 0, 0, 1),
+            ("EE23133", "Basic Electrical and Electronics Engineering", "ES", LAB, 3, 0, 2, 4),
+            (
+                "GE23121",
+                "Engineering Practices - Civil and Mechanical",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    2: {
+        "name": "Semester II",
+        "subjects": [
+            (
+                "HS23221 / HS23222",
+                "Technical Communication II / English for Professional Competence",
+                "HS", LABORATORY, 0, 0, 2, 1,
+            ),
+            (
+                "MA23212",
+                "Differential Equation and Complex Variables",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("CY23233", "Engineering Chemistry", "BS", LAB, 3, 0, 2, 4),
+            ("GE23211", "Engineering Mechanics", "ES", THEORY, 2, 1, 0, 3),
+            ("AE23211", "Fundamentals of Aerospace Engineering", "PC", THEORY, 3, 0, 0, 3),
+            ("GE23233", "Problem Solving and Python Programming", "ES", LAB, 2, 0, 4, 4),
+            ("GE23217", "Tamils and Technology", "HS", THEORY, 1, 0, 0, 1),
+            (
+                "GE23122",
+                "Engineering Practices - Electrical and Electronics",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    3: {
+        "name": "Semester III",
+        "subjects": [
+            (
+                "MA23311",
+                "Transforms and Applied Partial Differential Equations",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("AE23331", "Solid Mechanics", "PC", LAB, 2, 1, 2, 4),
+            ("AE23332", "Fluid Mechanics and Fluid Machinery", "PC", LAB, 2, 1, 2, 4),
+            ("AE23333", "Aero Engineering Thermodynamics", "PC", LAB, 2, 1, 2, 4),
+            ("CS23422", "Python Programming for Machine Learning", "ES", LABORATORY, 0, 0, 4, 2),
+            (None, "Open Elective - I", "OE", THEORY, 3, 0, 0, 3),
+            ("AE23321", "Computer Aided Modelling Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    4: {
+        "name": "Semester IV",
+        "subjects": [
+            ("MA23432", "Statistics and Numerical Methods", "BS", LAB, 3, 0, 2, 4),
+            ("AE23411", "Aircraft Structures - I", "PC", THEORY, 2, 1, 0, 3),
+            ("AE23412", "Control Engineering", "PC", THEORY, 3, 0, 0, 3),
+            ("AE23431", "Incompressible Aerodynamics", "PC", LAB, 2, 1, 2, 4),
+            ("AE23432", "Aircraft Materials and Processes", "PC", LAB, 3, 0, 2, 4),
+            ("AE23433", "Aircraft Systems and Instruments", "PC", LAB, 3, 0, 2, 4),
+        ],
+    },
+    5: {
+        "name": "Semester V",
+        "subjects": [
+            ("AE23511", "Aircraft Propulsion", "PC", THEORY, 2, 1, 0, 3),
+            ("AE23512", "Compressible Aerodynamics", "PC", THEORY, 2, 1, 0, 3),
+            ("AE23513", "Flight Dynamics", "PC", THEORY, 3, 1, 0, 4),
+            ("AE23531", "Aircraft Structures - II", "PC", LAB, 2, 1, 2, 4),
+            # The syllabus prints this one elective with an en dash and the rest
+            # with a hyphen. Normalised to the department's dominant form so one
+            # elective series does not appear under two spellings.
+            (None, "Professional Elective - I", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective - II", "OE", THEORY, 3, 0, 0, 3),
+            ("AE23521", "Computational Simulation Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    6: {
+        "name": "Semester VI",
+        "subjects": [
+            ("AE23611", "Rocket and Missile Propulsion", "PC", THEORY, 2, 1, 0, 3),
+            ("AE23631", "Flight Vehicle Design", "PC", LAB, 3, 0, 2, 4),
+            (None, "Professional Elective - II", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - III", "PE", THEORY, 3, 0, 0, 3),
+            ("AE23622", "Jet Propulsion Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+            (
+                "AE23623",
+                "Airframe Repair and Aero Engine Laboratory",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    7: {
+        "name": "Semester VII",
+        "subjects": [
+            ("AE23731", "Avionics", "PC", LAB, 3, 0, 2, 4),
+            ("AE23711", "Composite Materials and Structures", "PC", THEORY, 3, 0, 0, 3),
+            ("GE23311", "Fundamentals of Management for Engineers", "HS", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - IV", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - V", "PE", THEORY, 3, 0, 0, 3),
+            (
+                "AE23722",
+                "Artificial Intelligence and Machine Learning for Aeronautical Engineering",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    8: {
+        "name": "Semester VIII",
+        "subjects": [
+            (None, "Professional Elective - VI", "PE", THEORY, 3, 0, 0, 3),
+        ],
+    },
+}
+
+AUTO_CURRICULUM: dict[int, dict] = {
+    1: {
+        "name": "Semester I",
+        "subjects": [
+            ("HS23111", "Technical Communication I", "HS", THEORY, 2, 0, 0, 2),
+            ("MA23112", "Algebra and Calculus", "BS", THEORY, 3, 1, 0, 4),
+            ("GE23111", "Engineering Graphics", "ES", LAB, 2, 0, 4, 4),
+            ("AT23111", "Production Technology", "PC", THEORY, 3, 0, 0, 3),
+            ("GE23117", "Heritage of Tamils", "HS", THEORY, 1, 0, 0, 1),
+            ("PH23131", "Physics of Materials", "BS", LAB, 3, 0, 2, 4),
+            (
+                "GE23121",
+                "Engineering Practices - Civil and Mechanical",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    2: {
+        "name": "Semester II",
+        "subjects": [
+            (
+                "MA23212",
+                "Differential Equations and Complex Variables",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("GE23211", "Engineering Mechanics", "ES", THEORY, 2, 1, 0, 3),
+            ("GE23217", "Tamils and Technology", "HS", THEORY, 1, 0, 0, 1),
+            ("CY23233", "Engineering Chemistry", "BS", LAB, 3, 0, 2, 4),
+            ("EE23133", "Basic Electrical and Electronics Engineering", "ES", LAB, 3, 0, 2, 4),
+            ("GE23231", "Programming Using Python", "ES", LAB, 1, 0, 4, 3),
+            (
+                "HS23221 / HS23222",
+                "Technical Communication II / English for Professional Competence",
+                "HS", LABORATORY, 0, 0, 2, 1,
+            ),
+            (
+                "GE23122",
+                "Engineering Practices - Electrical and Electronics",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    3: {
+        "name": "Semester III",
+        "subjects": [
+            ("MA23331", "Transforms and Statistics", "BS", LAB, 3, 0, 2, 4),
+            ("AT23331", "Automotive Engines", "PC", LAB, 3, 0, 2, 4),
+            ("AT23332", "Applied Thermodynamics", "PC", LAB, 2, 1, 2, 4),
+            (
+                "AT23333",
+                "Strength of Materials for Automobile Engineers",
+                "PC", LAB, 2, 1, 2, 4,
+            ),
+            ("AT23334", "Production Technology - II", "PC", LAB, 3, 0, 2, 4),
+            (
+                "AT23321",
+                "Computer Aided Machine Drawing Laboratory",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    4: {
+        "name": "Semester IV",
+        "subjects": [
+            ("AT23411", "Electric and Hybrid Vehicles - I", "PC", THEORY, 3, 0, 0, 3),
+            ("AT23412", "Material Science and Metallurgy", "ES", THEORY, 3, 0, 0, 3),
+            ("AT23431", "Automotive Drive Line and Chassis", "PC", LAB, 3, 0, 2, 4),
+            (
+                "AT23432",
+                "Fluid Mechanics and Machinery for Automobile Engineers",
+                "PC", LAB, 2, 1, 2, 4,
+            ),
+            ("AT23433", "Theory of Machines", "PC", LAB, 2, 1, 2, 4),
+            ("CS23422", "Python Programming for Machine Learning", "ES", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    5: {
+        "name": "Semester V",
+        "subjects": [
+            ("AT23511", "Design of Machine Elements", "PC", THEORY, 2, 1, 0, 3),
+            ("GE23311", "Fundamentals of Management for Engineers", "HS", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - I", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective - I", "OE", THEORY, 3, 0, 0, 3),
+            ("AT23531", "Automotive Electrical and Electronics", "PC", LAB, 3, 0, 2, 4),
+            ("AT23532", "Electric and Hybrid Vehicles - II", "PC", LAB, 3, 0, 2, 4),
+            ("AT23521", "Two and Three Wheelers Laboratory", "PC", LABORATORY, 0, 0, 2, 1),
+            (
+                "AT23522",
+                "Computer Aided Vehicle Design Data Characteristics Laboratory",
+                "PC", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    6: {
+        "name": "Semester VI",
+        "subjects": [
+            (None, "Professional Elective - II", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective - II", "OE", THEORY, 3, 0, 0, 3),
+            ("AT23631", "Automotive System Design", "PC", LAB, 2, 1, 2, 4),
+            ("AT23632", "Vehicle Dynamics", "PC", LAB, 2, 1, 2, 4),
+            ("AT23633", "Automotive Fuels and Lubricants", "PC", LAB, 3, 0, 2, 4),
+        ],
+    },
+    7: {
+        "name": "Semester VII",
+        "subjects": [
+            ("AT23711", "Automotive Pollution and Control", "PC", THEORY, 3, 0, 0, 3),
+            ("AT23712", "Intelligent Vehicle System", "PC", THEORY, 3, 0, 0, 3),
+            ("AT23713", "Automotive Safety", "PC", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - III", "PE", THEORY, 3, 0, 0, 3),
+            ("AT23721", "AI and ML for Automobile Engineers", "PC", LABORATORY, 0, 0, 4, 2),
+            ("AT23722", "Vehicle Maintenance Laboratory", "PC", LABORATORY, 0, 0, 2, 1),
+            ("AT23723", "Computer Aided Analysis Laboratory", "PC", LABORATORY, 0, 0, 2, 1),
+        ],
+    },
+    8: {
+        "name": "Semester VIII",
+        "subjects": [
+            (None, "Professional Elective - IV", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective - V", "PE", THEORY, 3, 0, 0, 3),
+        ],
+    },
+}
+
+BT_CURRICULUM: dict[int, dict] = {
+    1: {
+        "name": "Semester I",
+        "subjects": [
+            ("HS23111", "Technical Communication I", "HS", THEORY, 2, 0, 0, 2),
+            ("MA23112", "Algebra and Calculus", "BS", THEORY, 3, 1, 0, 4),
+            ("CY23132", "Chemistry for Technologists", "BS", LAB, 3, 0, 2, 4),
+            ("GE23111", "Engineering Graphics", "ES", LAB, 2, 0, 4, 4),
+            (
+                "GE23121",
+                "Engineering Practices - Civil and Mechanical",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+            ("BT23131", "Microbiology", "PC", LAB, 2, 0, 4, 4),
+            ("GE23117", "Heritage of Tamils", "HS", THEORY, 1, 0, 0, 1),
+        ],
+    },
+    2: {
+        "name": "Semester II",
+        "subjects": [
+            (
+                "HS23221 / HS23222",
+                "Technical Communication II / English for Professional Competence",
+                "HS", LABORATORY, 0, 0, 2, 1,
+            ),
+            (
+                "MA23212",
+                "Differential Equations and Complex Variables",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("PH23231", "Physics for Bioscience", "BS", LAB, 3, 0, 2, 4),
+            ("GE23231", "Programming using Python", "ES", LAB, 1, 0, 4, 3),
+            ("GE23212", "Basic Civil and Mechanical Engineering", "ES", THEORY, 3, 0, 0, 3),
+            ("BT23211", "Biochemistry", "PC", THEORY, 3, 0, 0, 3),
+            ("GE23217", "Tamils and Technology", "HS", THEORY, 1, 0, 0, 1),
+            ("BT23221", "Biochemistry Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    3: {
+        "name": "Semester III",
+        "subjects": [
+            (
+                "MA23311",
+                "Transforms and Applied Partial Differential Equations",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            (
+                "BT23311",
+                "Enzyme Technology and Biotransformations",
+                "PC", THEORY, 3, 0, 0, 3,
+            ),
+            ("BT23312", "Stoichiometry and Fluid Mechanics", "ES", THEORY, 3, 0, 0, 3),
+            ("BT23313", "Molecular Genetics", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23314", "Cell Biology", "PC", THEORY, 3, 0, 0, 3),
+            (
+                "BT23321",
+                "Basic Food and Enzyme Technology Laboratory",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+            ("BT23331", "Analytical Techniques in Biotechnology", "ES", LAB, 2, 0, 2, 3),
+        ],
+    },
+    4: {
+        "name": "Semester IV",
+        "subjects": [
+            ("MA23431", "Probability, Statistics and Reliability", "BS", LAB, 3, 0, 2, 4),
+            ("BT23411", "Food Biotechnology", "ES", THEORY, 3, 0, 0, 3),
+            ("BT23412", "Genetic Engineering", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23413", "Thermodynamics and Heat Transfer", "ES", THEORY, 2, 1, 0, 3),
+            ("BT23414", "Basic Industrial Biotechnology", "PC", THEORY, 3, 0, 0, 3),
+            ("CS23422", "Python Programming for Machine Learning", "ES", LABORATORY, 0, 0, 4, 2),
+            (
+                "BT23421",
+                "Chemical Engineering Laboratory for Biotechnologists",
+                "ES", LABORATORY, 0, 0, 4, 2,
+            ),
+            (
+                "BT23422",
+                "Molecular Biology and Genetic Engineering Laboratory",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    5: {
+        "name": "Semester V",
+        "subjects": [
+            ("BT23511", "Bioprocess Principles", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23512", "Bioinformatics", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23513", "Separation Process Principles", "ES", THEORY, 3, 0, 0, 3),
+            ("BT23514", "Immunology", "PC", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective I", "PE", THEORY, 3, 0, 0, 3),
+            ("BT23521", "Bioprocess Laboratory - I", "PC", LABORATORY, 0, 0, 4, 2),
+            ("BT23522", "Bioinformatics Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+            ("BT23523", "Immunology Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    6: {
+        "name": "Semester VI",
+        "subjects": [
+            ("BT23611", "Bioprocess Technology", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23612", "Chemical Reaction Engineering", "ES", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective II", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective III", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective IV", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective I", "OE", THEORY, 3, 0, 0, 3),
+            ("BT23621", "Bioprocess Laboratory II", "PC", LABORATORY, 0, 0, 4, 2),
+            (
+                "BT23622",
+                "Numerical Programming for Biotechnologists",
+                "PC", LABORATORY, 0, 0, 2, 1,
+            ),
+        ],
+    },
+    7: {
+        "name": "Semester VII",
+        "subjects": [
+            ("BT23711", "Downstream Processing", "PC", THEORY, 3, 0, 0, 3),
+            ("BT23712", "Protein Engineering", "PC", THEORY, 3, 0, 0, 3),
+            # Listed under PC with two credits, unlike Mechanical's Comprehension,
+            # which the syllabus files as EEC. Included on the section, as always.
+            ("BT23713", "Comprehension in Biotechnology", "PC", THEORY, 2, 0, 0, 2),
+            (None, "Professional Elective V", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective VI", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective II", "OE", THEORY, 3, 0, 0, 3),
+            ("BT23721", "Downstream Processing Laboratory", "PC", LABORATORY, 0, 0, 4, 2),
+            (
+                "BT23722",
+                "Artificial Intelligence and Machine Learning for Biotechnologist",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+            ("EC23527", "Microfluidics Laboratory", "ES", LABORATORY, 0, 0, 2, 1),
+        ],
+    },
+    # Semester VIII carries only BT23822 Capstone Project, an EEC course, so the
+    # semester is created but holds no subjects — as with Food Technology.
+    8: {
+        "name": "Semester VIII",
+        "subjects": [],
+    },
+}
+
+CSBS_CURRICULUM: dict[int, dict] = {
+    1: {
+        "name": "Semester I",
+        "subjects": [
+            ("HS23112", "Business Communication and Value Science - I", "HS", THEORY, 2, 0, 0, 2),
+            ("MA23115", "Discrete Mathematics", "BS", THEORY, 3, 1, 0, 4),
+            ("MA23114", "Probability and Calculus", "BS", THEORY, 3, 1, 0, 4),
+            ("GE23117", "Heritage of Tamils", "HS", THEORY, 1, 0, 0, 1),
+            ("CB23131", "Fundamentals of Computer Science", "PC", LAB, 2, 0, 4, 4),
+            ("EE23131", "Principles of Electrical Engineering", "ES", LAB, 2, 0, 2, 3),
+            ("PH23133", "Physics for Computing Science", "BS", LAB, 3, 0, 2, 4),
+        ],
+    },
+    2: {
+        "name": "Semester II",
+        "subjects": [
+            ("MA23211", "Linear Algebra", "BS", THEORY, 3, 1, 0, 4),
+            ("BA23217", "Fundamentals of Economics", "MS", THEORY, 2, 0, 0, 2),
+            ("GE23217", "Tamils and Technology", "HS", THEORY, 1, 0, 0, 1),
+            ("MA23231", "Statistical Modeling", "BS", LAB, 3, 0, 2, 4),
+            ("CB23231", "Data Structures and Algorithms", "PC", LAB, 2, 1, 4, 5),
+            ("EC23242", "Principles of Electronics", "ES", LAB, 2, 0, 2, 3),
+            ("CS23221", "Python Programming Lab", "PC", LABORATORY, 0, 0, 4, 2),
+            (
+                "HS23225",
+                "Business Communication and Value Science - II",
+                "HS", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    3: {
+        "name": "Semester III",
+        "subjects": [
+            ("CB23311", "Formal Language and Automata Theory", "PC", THEORY, 3, 0, 0, 3),
+            ("CB23312", "Computer Organization and Architecture", "PC", THEORY, 3, 0, 0, 3),
+            ("CB23331", "Computational Statistics", "PC", LAB, 3, 0, 2, 4),
+            ("CB23332", "Software Engineering", "PC", LAB, 3, 0, 2, 4),
+            ("CB23333", "Database Technology", "PC", LAB, 3, 0, 2, 4),
+            ("CS23333", "Object Oriented Programming Using Java", "PC", LAB, 1, 0, 6, 4),
+        ],
+    },
+    4: {
+        "name": "Semester IV",
+        "subjects": [
+            ("BA23412", "Fundamentals of Management", "MS", THEORY, 2, 0, 0, 2),
+            ("CB23431", "Operating System Concepts", "PC", LAB, 3, 0, 2, 4),
+            ("CB23432", "Software Design with UML", "PC", LAB, 2, 0, 2, 3),
+            ("CB23433", "Analysis of Algorithms and Design", "PC", LAB, 2, 1, 2, 4),
+            ("MA23437", "Optimization Techniques", "BS", LAB, 3, 0, 2, 4),
+            (
+                "HS23421",
+                "Business Communication and Value Science - III",
+                "HS", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    5: {
+        "name": "Semester V",
+        "subjects": [
+            ("BA23511", "Principles of Financial Management", "MS", THEORY, 2, 0, 0, 2),
+            (None, "Open Elective I", "OE", THEORY, 3, 0, 0, 3),
+            ("CB23531", "Computer Network Technology", "PC", LAB, 3, 0, 2, 4),
+            ("CB23532", "Artificial Intelligence", "PC", LAB, 3, 0, 2, 4),
+            (None, "Professional Elective I", "PE", LAB, 2, 1, 2, 4),
+            # CSBS files GE23627 as a Professional Core course, where Chemical
+            # Engineering files the same code as EEC. Included here and excluded
+            # there, because each department's own syllabus is the authority.
+            ("GE23627", "Design Thinking and Innovation", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    6: {
+        "name": "Semester VI",
+        "subjects": [
+            ("BA23611", "Financial and Cost Accounting", "MS", THEORY, 2, 0, 0, 2),
+            ("BA23612", "Business Strategy", "MS", THEORY, 2, 0, 0, 2),
+            ("CB23631", "Machine Learning", "PC", LAB, 2, 1, 2, 4),
+            ("CB23632", "Cloud, Microservices and Application", "PC", LAB, 2, 1, 2, 4),
+            ("CB23633", "Usability Design of Software Applications", "PC", LAB, 2, 0, 2, 3),
+            (None, "Professional Elective II", "PE", THEORY, 3, 0, 0, 3),
+            (
+                "HS23621",
+                "Business Communication and Value Science - IV",
+                "HS", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    7: {
+        "name": "Semester VII",
+        "subjects": [
+            (None, "Open Elective II", "OE", THEORY, 3, 0, 0, 3),
+            ("CB23731", "Data Visualization Techniques", "PC", LAB, 2, 0, 2, 3),
+            ("CB23732", "IT Project Management", "PC", LAB, 2, 0, 2, 3),
+            (None, "Professional Elective III", "PE", LAB, 3, 0, 2, 4),
+            (None, "Professional Elective IV", "PE", THEORY, 3, 0, 0, 3),
+        ],
+    },
+    8: {
+        "name": "Semester VIII",
+        "subjects": [
+            (None, "Professional Elective V", "PE", LAB, 3, 0, 2, 4),
+            (None, "Professional Elective VI", "PE", THEORY, 3, 0, 0, 3),
+        ],
+    },
+}
+
+CHEM_CURRICULUM: dict[int, dict] = {
+    1: {
+        "name": "Semester I",
+        "subjects": [
+            ("HS23111", "Technical Communication I", "HS", THEORY, 2, 0, 0, 2),
+            ("MA23112", "Algebra and Calculus", "BS", THEORY, 3, 1, 0, 4),
+            ("PH23111", "Physics for Chemical Engineering", "BS", THEORY, 3, 0, 0, 3),
+            ("CY23132", "Chemistry for Technologists", "BS", LAB, 3, 0, 2, 4),
+            ("GE23111", "Engineering Graphics", "ES", LAB, 2, 0, 4, 4),
+            (
+                "GE23121",
+                "Engineering Practices - Civil and Mechanical",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+            ("GE23117", "Heritage of Tamils", "HS", THEORY, 1, 0, 0, 1),
+        ],
+    },
+    2: {
+        "name": "Semester II",
+        "subjects": [
+            (
+                "HS23221 / HS23222",
+                "Technical Communication II / English for Professional Competence",
+                "HS", LABORATORY, 0, 0, 2, 1,
+            ),
+            (
+                "MA23212",
+                "Differential Equations and Complex Variables",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("CH23211", "Introduction to Chemical Engineering", "PC", THEORY, 3, 0, 0, 3),
+            ("GE23233", "Problem Solving and Python Programming", "ES", LAB, 2, 0, 4, 4),
+            ("PH23233", "Material Science", "BS", LAB, 3, 0, 2, 4),
+            ("EE23133", "Basic Electrical and Electronics Engineering", "ES", LAB, 3, 0, 2, 4),
+            (
+                "GE23122",
+                "Engineering Practices - Electrical and Electronics",
+                "ES", LABORATORY, 0, 0, 2, 1,
+            ),
+            ("GE23217", "Tamils and Technology", "HS", THEORY, 1, 0, 0, 1),
+        ],
+    },
+    3: {
+        "name": "Semester III",
+        "subjects": [
+            (
+                "MA23311",
+                "Transforms and Applied Partial Differential Equations",
+                "BS", THEORY, 3, 1, 0, 4,
+            ),
+            ("CY23334", "Physical and Organic Chemistry", "ES", LAB, 3, 0, 2, 4),
+            ("CH23311", "Solid Mechanics", "ES", THEORY, 2, 1, 0, 3),
+            ("CH23312", "Chemical Process Calculations", "PC", THEORY, 2, 1, 0, 3),
+            ("CH23313", "Chemical Process Industries", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23331", "Fluid Mechanics for Chemical Engineers", "PC", LAB, 3, 0, 2, 4),
+        ],
+    },
+    4: {
+        "name": "Semester IV",
+        "subjects": [
+            ("MA23431", "Probability, Statistics and Reliability", "BS", LAB, 3, 0, 2, 4),
+            ("CH23411", "Thermodynamics", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23412", "Heat Transfer", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23431", "Particle Science and Technology", "PC", LAB, 3, 0, 2, 4),
+            (None, "Open Elective I", "OE", THEORY, 3, 0, 0, 3),
+            ("CS23422", "Python Programming for Machine Learning", "ES", LABORATORY, 0, 0, 4, 2),
+            ("CH23421", "Technical Analysis Lab", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    5: {
+        "name": "Semester V",
+        "subjects": [
+            ("CH23511", "Process Plant Utilities", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23512", "Chemical Engineering Thermodynamics", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23513", "Mass Transfer I", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23514", "Chemical Reaction Engineering - I", "PC", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective I", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Open Elective II", "OE", THEORY, 3, 0, 0, 3),
+            ("CH23521", "Heat Transfer Lab", "PC", LABORATORY, 0, 0, 4, 2),
+            # Chemical Engineering files this shared lab as PE; Biotechnology
+            # files the same code as ES. Each is kept as its own syllabus prints.
+            ("EC23527", "Microfluidics Laboratory", "PE", LABORATORY, 0, 0, 2, 1),
+        ],
+    },
+    6: {
+        "name": "Semester VI",
+        "subjects": [
+            ("CH23611", "Mass Transfer II", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23612", "Chemical Reaction Engineering - II", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23613", "Process Control and Instrumentation", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23614", "Process Equipment Design", "PC", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective II", "PE", THEORY, 3, 0, 0, 3),
+            ("CH23621", "Mass Transfer Lab", "PC", LABORATORY, 0, 0, 4, 2),
+        ],
+    },
+    7: {
+        "name": "Semester VII",
+        "subjects": [
+            ("CH23711", "Transport Phenomena", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23712", "Comprehension in Chemical Engineering", "PC", THEORY, 3, 0, 0, 3),
+            ("CH23713", "Process Engineering Economics", "PC", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective III", "PE", THEORY, 3, 0, 0, 3),
+            (None, "Professional Elective IV", "PE", THEORY, 3, 0, 0, 3),
+            ("CH23721", "Chemical Reaction Engineering Lab", "PC", LABORATORY, 0, 0, 4, 2),
+            ("CH23722", "Process Control Lab", "PC", LABORATORY, 0, 0, 4, 2),
+            (
+                "CH23723",
+                "Artificial Intelligence and Machine Learning for Chemical Engineers",
+                "PC", LABORATORY, 0, 0, 4, 2,
+            ),
+        ],
+    },
+    8: {
+        "name": "Semester VIII",
+        "subjects": [
+            (None, "Professional Elective V", "PE", THEORY, 3, 0, 0, 3),
+        ],
+    },
+}
+
 # Keyed by department code — the only thing `seed_academics` iterates.
 CURRICULA: dict[str, dict[int, dict]] = {
     "AI&DS": AIDS_CURRICULUM,
@@ -1555,6 +2167,11 @@ CURRICULA: dict[str, dict[int, dict]] = {
     # alone so the existing record is reused rather than duplicated.
     "CSE-CS": CSE_CS_CURRICULUM,
     "FT": FT_CURRICULUM,
+    "AERO": AERO_CURRICULUM,
+    "AUTO": AUTO_CURRICULUM,
+    "BT": BT_CURRICULUM,
+    "CSBS": CSBS_CURRICULUM,
+    "CHEM": CHEM_CURRICULUM,
 }
 
 # Courses deliberately left out, recorded so the omission can be audited rather
@@ -1685,6 +2302,64 @@ EXCLUDED: dict[str, list[tuple[str, str, str]]] = {
         ("GE23621", "Problem Solving Techniques", "EEC"),
         ("RO23722", "Project Work- Phase I", "EEC"),
         ("RO23821", "Project Work- Phase II", "EEC"),
+    ],
+    "CSBS": [
+        ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),
+        ("MC23313", "Environmental Sciences", "Non-credit"),
+        (
+            "CB23411",
+            "Introduction to Innovation, IP Management and Entrepreneurship",
+            "EEC",
+        ),
+        ("GE23421", "Soft Skills - I", "EEC"),
+        ("GE23521", "Soft Skills - II", "EEC"),
+        ("CB23521", "Internship", "EEC"),
+        ("GE23621", "Problem Solving Techniques", "EEC"),
+        ("CB23721", "Project Evaluation I", "EEC"),
+        ("CB23821", "Project Evaluation II", "EEC"),
+    ],
+    "CHEM": [
+        ("MC23112", "Environmental Science and Engineering", "Non-credit"),
+        ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),
+        ("GE23421", "Soft Skills - I", "EEC"),
+        ("GE23521", "Soft Skills - II", "EEC"),
+        ("GE23621", "Problem Solving Techniques", "EEC"),
+        ("GE23627", "Design Thinking and Innovation", "EEC"),
+        ("CH23522", "Industrial Training (2 Weeks)", "EEC"),
+        ("CH23724", "Professional Training for Chemical Engineers", "EEC"),
+        ("CH23821", "Project Work", "EEC"),
+    ],
+    "AERO": [
+        ("MC23112", "Environmental Science and Engineering", "Non-credit"),
+        ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),
+        ("GE23421", "Soft Skills - I", "EEC"),
+        ("GE23521", "Soft Skills - II", "EEC"),
+        ("AE23522", "Internship", "EEC"),
+        ("GE23627", "Design Thinking and Innovation", "EEC"),
+        ("GE23621", "Problem Solving Techniques", "EEC"),
+        ("AE23721", "Project Work Phase I", "EEC"),
+        ("AE23821", "Project Work Phase II", "EEC"),
+    ],
+    "AUTO": [
+        ("MC23112", "Environmental Science and Engineering", "Non-credit"),
+        ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),
+        ("GE23421", "Soft Skills - I", "EEC"),
+        ("GE23521", "Soft Skills - II", "EEC"),
+        ("GE23621", "Problem Solving Techniques", "EEC"),
+        ("GE23627", "Design Thinking and Innovation", "EEC"),
+        ("AT23621", "Industrial Training", "EEC"),
+        ("AT23724", "Internship", "EEC"),
+        ("AT23821", "Project Work", "EEC"),
+    ],
+    "BT": [
+        ("MC23112", "Environmental Science and Engineering", "Non-credit"),
+        ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),
+        ("GE23421", "Soft Skills - I", "EEC"),
+        ("GE23521", "Soft Skills-II", "EEC"),
+        ("GE23621", "Problem Solving Techniques", "EEC"),
+        ("GE23627", "Design Thinking and Innovation", "EEC"),
+        ("BT23724", "Professional Internship", "EEC"),
+        ("BT23822", "Capstone Project", "EEC"),
     ],
     "CSE-CS": [
         ("MC23111", "Indian Constitution and Freedom Movement", "Non-credit"),

@@ -16,7 +16,9 @@ from __future__ import annotations
 # convenience only: nothing in the data model depends on it, so regrouping a
 # department later has no effect on its curriculum.
 DEPARTMENTS: tuple[tuple[str, str, str], ...] = (
-    ("Aeronautical Engineering", "AE", "Engineering"),
+    # "AERO" rather than "AE": AE is also the department's course-code prefix
+    # (AE23211, AE23431), the same collision that prompted CE -> CIVIL.
+    ("Aeronautical Engineering", "AERO", "Engineering"),
     ("Artificial Intelligence and Data Science", "AI&DS", "Computing"),
     ("Artificial Intelligence and Machine Learning", "AI&ML", "Computing"),
     ("Automobile Engineering", "AUTO", "Engineering"),

@@ -18,7 +18,6 @@ from .models import Role, User
 from .serializers import (
     AdminLoginSerializer,
     LoginSerializer,
-    RegisterSerializer,
     UserListSerializer,
     UserSerializer,
 )
@@ -49,29 +48,6 @@ class RefreshView(TokenRefreshView):
     """POST /api/auth/token/refresh/"""
 
     permission_classes = [AllowAny]
-
-
-class RegisterView(generics.CreateAPIView):
-    """POST /api/auth/register/ — creates a student account and signs them in."""
-
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-    throttle_classes = [LoginRateThrottle]
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserSerializer(user).data,
-            },
-            status=status.HTTP_201_CREATED,
-        )
 
 
 class MeView(APIView):

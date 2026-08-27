@@ -27,6 +27,7 @@ class CourseCategory(models.TextChoices):
     HSMC = "HSMC", "Humanities, Social Sciences & Management"
     HSM = "HSM", "Humanities & Management"
     MC = "MC", "Mandatory Course"
+    MS = "MS", "Management Studies"
     BS = "BS", "Basic Sciences"
     ES = "ES", "Engineering Sciences"
     PC = "PC", "Professional Core"
