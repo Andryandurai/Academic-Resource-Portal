@@ -1,0 +1,15 @@
+.git
+**/__pycache__
+**/*.pyc
+backend/venv
+backend/.venv
+backend/*.sqlite3*
+backend/staticfiles
+backend/media
+backend/.env
+frontend/node_modules
+frontend/dist
+frontend/.vite
+*.tsbuildinfo
+.legacy-backup
+tools
