@@ -809,6 +809,7 @@ code, kbd, .mono {
 .stat {
   display: flex;
   align-items: flex-end;
+  gap: var(--s4);
   padding: var(--s4);
   background: var(--paper-raised);
   border: var(--hairline) solid var(--ink);

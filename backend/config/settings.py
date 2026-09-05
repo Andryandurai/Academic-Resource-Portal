@@ -17,6 +17,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
+# Loads backend/.env into the process environment if one exists (never
+# overwriting a variable the shell already set). Optional: a managed host sets
+# these directly and ships no .env file at all.
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv(BASE_DIR / ".env")
+
 # Hosting platforms export a marker into every build and running service. Using
 # it to pick the *default* means a deployment cannot accidentally ship a debug
 # build because someone forgot an environment variable, while local development
@@ -53,6 +60,7 @@ INSTALLED_APPS = [
     "accounts",
     "academics",
     "resources",
+    "whatsapp",
 ]
 
 MIDDLEWARE = [
@@ -202,8 +210,34 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Uploaded resource files live on local disk by default. A free host's disk is
+# usually ephemeral (Render's free tier wipes it on every restart/redeploy), so
+# setting REC_S3_ACCESS_KEY_ID switches to any S3-compatible bucket instead —
+# Supabase Storage, Cloudflare R2, or AWS S3 itself all work unchanged, since
+# they all speak the same S3 API django-storages targets.
+REC_S3_ACCESS_KEY_ID = os.environ.get("REC_S3_ACCESS_KEY_ID", "")
+if REC_S3_ACCESS_KEY_ID:
+    INSTALLED_APPS.append("storages")
+    AWS_ACCESS_KEY_ID = REC_S3_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = os.environ.get("REC_S3_SECRET_ACCESS_KEY", "")
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("REC_S3_BUCKET_NAME", "resources")
+    AWS_S3_ENDPOINT_URL = os.environ.get("REC_S3_ENDPOINT_URL", "")
+    AWS_S3_REGION_NAME = os.environ.get("REC_S3_REGION_NAME", "us-east-1")
+    # Path style ("endpoint/bucket/key") rather than virtual-hosted style
+    # ("bucket.endpoint/key") — the form third-party S3-compatible providers
+    # expect; AWS itself accepts both.
+    AWS_S3_ADDRESSING_STYLE = "path"
+    # The bucket is private (see whatsapp/README.md and resources/views.py):
+    # every file is read server-side and streamed through the authenticated
+    # download endpoint, so no object ever needs a public ACL or a signed URL.
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    _default_storage_backend = "storages.backends.s3.S3Storage"
+else:
+    _default_storage_backend = "django.core.files.storage.FileSystemStorage"
+
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": _default_storage_backend},
     "staticfiles": {
         # Hashed filenames let assets be cached forever, but the manifest they
         # rely on only exists after collectstatic. Requiring that in development
@@ -326,3 +360,36 @@ LOGGING = {
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False}
     },
 }
+
+# --------------------------------------------------------------------------- #
+# WhatsApp bot (Meta Cloud API)
+# --------------------------------------------------------------------------- #
+# Every credential is optional at import time so the rest of the site (and the
+# test suite) never needs them; the webhook view raises ImproperlyConfigured on
+# first real use if one is missing. See whatsapp/README.md for how to obtain
+# each value from the free Meta developer console.
+WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "")
+WHATSAPP_ACCESS_TOKEN = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+# Validates X-Hub-Signature-256 on every inbound webhook so a forged POST to a
+# guessed URL cannot pretend to be Meta. Required to run for real; the test
+# suite exercises the webhook with signing disabled explicitly.
+WHATSAPP_APP_SECRET = os.environ.get("WHATSAPP_APP_SECRET", "")
+# Explicit, off-by-default escape hatch for a real local test session that
+# cannot yet retrieve its App secret from Meta. Never set this outside a
+# throwaway local .env — see meta_client.verify_signature.
+WHATSAPP_INSECURE_SKIP_SIGNATURE = os.environ.get("WHATSAPP_INSECURE_SKIP_SIGNATURE", "0") == "1"
+WHATSAPP_API_VERSION = os.environ.get("WHATSAPP_API_VERSION", "v21.0")
+WHATSAPP_GRAPH_BASE = f"https://graph.facebook.com/{WHATSAPP_API_VERSION}"
+# Logs outgoing messages instead of calling Meta. On by DEBUG default so a
+# developer with no WhatsApp credentials yet can still drive the whole
+# conversation through the /api/whatsapp/dev-send/ helper endpoint.
+WHATSAPP_DRY_RUN = os.environ.get("WHATSAPP_DRY_RUN", "1" if DEBUG else "0") == "1"
+
+# Free-tier LLM used only to turn a loose sentence ("unit 1 data structure
+# notes") into {subject, unit, kind}. Groq's OpenAI-compatible endpoint needs no
+# extra SDK. When GROQ_API_KEY is unset the bot falls back to a regex-based
+# extractor automatically — see whatsapp/services/nlp.py.
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_API_BASE = "https://api.groq.com/openai/v1"

@@ -3,7 +3,7 @@
 from django.http import JsonResponse
 from django.urls import include, path, re_path
 
-from . import spa
+from . import privacy, spa
 
 
 def health(_request):
@@ -18,6 +18,8 @@ urlpatterns = [
     path("api/auth/", include("accounts.urls")),
     path("api/", include("academics.urls")),
     path("api/", include("resources.urls")),
+    path("api/whatsapp/", include("whatsapp.urls")),
+    path("privacy/", privacy.index, name="privacy-policy"),
     # Everything the API did not claim is a client-side route. `api/` and
     # `static/` are excluded so an unknown endpoint still returns a JSON-shaped
     # 404 rather than the SPA shell with a 200 — a mistyped API path that answers

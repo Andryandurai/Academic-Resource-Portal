@@ -751,25 +751,44 @@ export function ResourceCategory() {
                   <h3 style={{ margin: 0 }}>{resource.title}</h3>
                   {resource.description ? <p className="muted">{resource.description}</p> : null}
                   <p className="meta">
-                    <span className="chip">{resource.file_type_label}</span>{" "}
-                    {formatBytes(resource.file_size)} · Uploaded {formatDate(resource.created_at)}
-                    {resource.uploaded_by_name ? ` · By ${resource.uploaded_by_name}` : ""} ·{" "}
-                    {resource.file_name}
+                    <span className="chip">{resource.kind_label}</span>{" "}
+                    {resource.is_link ? (
+                      resource.url
+                    ) : (
+                      <>
+                        {formatBytes(resource.file_size)} · {resource.file_name}
+                      </>
+                    )}{" "}
+                    · Uploaded {formatDate(resource.created_at)}
+                    {resource.uploaded_by_name ? ` · By ${resource.uploaded_by_name}` : ""}
                   </p>
                 </div>
                 <div className="row row--tight">
-                  {resource.inline_viewable ? (
-                    <button type="button" className="btn btn--sm" onClick={() => void preview(resource)}>
-                      <EyeIcon width={15} height={15} /> View
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    onClick={() => void download(resource)}
-                  >
-                    <DownloadIcon width={15} height={15} /> Download
-                  </button>
+                  {resource.is_link ? (
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn--primary btn--sm"
+                    >
+                      <EyeIcon width={15} height={15} /> Open
+                    </a>
+                  ) : (
+                    <>
+                      {resource.inline_viewable ? (
+                        <button type="button" className="btn btn--sm" onClick={() => void preview(resource)}>
+                          <EyeIcon width={15} height={15} /> View
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn--primary btn--sm"
+                        onClick={() => void download(resource)}
+                      >
+                        <DownloadIcon width={15} height={15} /> Download
+                      </button>
+                    </>
+                  )}
                 </div>
               </article>
             </li>

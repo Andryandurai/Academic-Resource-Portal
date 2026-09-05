@@ -295,8 +295,8 @@
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .quickcard:hover { border-color: var(--signal-line); box-shadow: var(--shadow); transform: translateY(-1px); }
-.quickcard__title { margin: 0; font-weight: 700; color: var(--ink); }
-.quickcard__sub { margin: 2px 0 0; font-size: var(--fs-tiny); color: var(--ink-3); }
+.quickcard__title { display: block; margin: 0; font-weight: 700; color: var(--ink); }
+.quickcard__sub { display: block; margin: 2px 0 0; font-size: var(--fs-tiny); color: var(--ink-3); }
 
 /* ----- department card ----------------------------------------------------- */
 .deptcard {

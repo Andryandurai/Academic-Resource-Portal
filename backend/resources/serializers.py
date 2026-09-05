@@ -6,12 +6,21 @@ size — before anything is written to disk.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from core.validators import sanitize_display_name, validate_upload
 
-from .models import Resource, ResourceType
+from .models import ContentKind, LINK_KINDS, Resource, ResourceType
+
+
+def _is_youtube(url: str) -> bool:
+    """Accept the host forms YouTube actually issues, and nothing else."""
+    host = urlparse(url).netloc.lower().split(":")[0]
+    host = host[4:] if host.startswith("www.") else host
+    return host in {"youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 
 
 class ResourceSerializer(serializers.ModelSerializer):
@@ -29,6 +38,8 @@ class ResourceSerializer(serializers.ModelSerializer):
         source="subject.semester.semester_number", read_only=True
     )
     resource_type_label = serializers.CharField(source="get_resource_type_display", read_only=True)
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+    is_link = serializers.BooleanField(read_only=True)
     uploaded_by_name = serializers.CharField(source="uploaded_by.name", read_only=True, default=None)
     file_type_label = serializers.CharField(read_only=True)
     inline_viewable = serializers.BooleanField(read_only=True)
@@ -44,6 +55,10 @@ class ResourceSerializer(serializers.ModelSerializer):
             "semester_number",
             "resource_type",
             "resource_type_label",
+            "kind",
+            "kind_label",
+            "is_link",
+            "url",
             "title",
             "description",
             "file_name",
@@ -68,11 +83,13 @@ class ResourceWriteSerializer(serializers.ModelSerializer):
     """
 
     resource_type = serializers.ChoiceField(choices=ResourceType.choices)
+    kind = serializers.ChoiceField(choices=ContentKind.choices, default=ContentKind.NOTES)
     file = serializers.FileField(required=False, write_only=True)
+    url = serializers.URLField(required=False, allow_blank=True, max_length=500)
 
     class Meta:
         model = Resource
-        fields = ["id", "subject", "resource_type", "title", "description", "file"]
+        fields = ["id", "subject", "resource_type", "kind", "title", "description", "file", "url"]
 
     def validate_title(self, value: str) -> str:
         value = (value or "").strip()
@@ -95,8 +112,33 @@ class ResourceWriteSerializer(serializers.ModelSerializer):
         return upload
 
     def validate(self, attrs):
-        if self.instance is None and "file" not in attrs:
-            raise serializers.ValidationError({"file": "A file is required to publish a resource."})
+        # `kind` decides which of the two payloads is legal, so resolve it
+        # first — on update it may be absent and inherited from the row.
+        kind = attrs.get("kind") or (self.instance.kind if self.instance else ContentKind.NOTES)
+        is_link = kind in LINK_KINDS
+        url = (attrs.get("url") or "").strip()
+        has_file = attrs.get("file") is not None
+
+        if is_link:
+            if has_file:
+                raise serializers.ValidationError(
+                    {"file": "A reference or video is a link, not a file."}
+                )
+            if not url and (self.instance is None or not self.instance.url):
+                raise serializers.ValidationError({"url": "A link is required for this kind."})
+            if kind == ContentKind.YOUTUBE and url and not _is_youtube(url):
+                raise serializers.ValidationError(
+                    {"url": "That is not a YouTube link. Use a youtube.com or youtu.be URL."}
+                )
+            attrs["url"] = url or (self.instance.url if self.instance else "")
+        else:
+            if url:
+                raise serializers.ValidationError({"url": "Notes carry a file, not a link."})
+            if self.instance is None and not has_file:
+                raise serializers.ValidationError(
+                    {"file": "A file is required to publish notes."}
+                )
+            attrs["url"] = ""
         return attrs
 
     def _file_fields(self, upload) -> dict:
@@ -108,8 +150,9 @@ class ResourceWriteSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        upload = validated_data["file"]
-        validated_data.update(self._file_fields(upload))
+        upload = validated_data.get("file")
+        if upload is not None:
+            validated_data.update(self._file_fields(upload))
         validated_data["uploaded_by"] = self.context["request"].user
         return super().create(validated_data)
 
@@ -124,7 +167,7 @@ class ResourceWriteSerializer(serializers.ModelSerializer):
 
         # The replaced file is removed only after the row points at the new one,
         # so a failure mid-update never leaves a record referencing nothing.
-        if previous and previous.name != instance.file.name:
+        if previous and previous.name != (instance.file.name if instance.file else ""):
             previous.delete(save=False)
         return instance
 

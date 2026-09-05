@@ -30,10 +30,13 @@ import { useSession } from "../../stores/session";
 import { useUi } from "../../stores/ui";
 import {
   CATEGORY_LABELS,
+  CONTENT_KINDS,
+  CONTENT_KIND_LABELS,
   COURSE_TYPES,
   RESOURCE_TYPES,
   RESOURCE_TYPE_LABELS,
   roman,
+  type ContentKind,
   type Resource,
   type Semester,
   type Stats,
@@ -591,7 +594,9 @@ export function AdminResources() {
                 <tr key={resource.id}>
                   <td>
                     {resource.title}
-                    <div className="meta">{resource.file_name} · {formatBytes(resource.file_size)}</div>
+                    <div className="meta">
+                      {resource.is_link ? resource.url : `${resource.file_name} · ${formatBytes(resource.file_size)}`}
+                    </div>
                   </td>
                   <td>
                     {resource.subject_code ? <b>{resource.subject_code} </b> : null}
@@ -599,17 +604,31 @@ export function AdminResources() {
                   </td>
                   <td className="nowrap">{roman(resource.semester_number)}</td>
                   <td><span className="chip">{resource.resource_type_label}</span></td>
-                  <td className="nowrap meta">{resource.file_type_label}</td>
+                  <td className="nowrap meta">
+                    {resource.is_link ? resource.kind_label : resource.file_type_label}
+                  </td>
                   <td className="nowrap">{formatDate(resource.created_at)}</td>
                   <td className="actions">
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      onClick={() => void api.resources.download(resource.id, resource.file_name)}
-                    >
-                      <DownloadIcon width={15} height={15} />
-                      <span className="sr-only">Download {resource.title}</span>
-                    </button>
+                    {resource.is_link ? (
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn--sm"
+                      >
+                        <DownloadIcon width={15} height={15} />
+                        <span className="sr-only">Open {resource.title}</span>
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        onClick={() => void api.resources.download(resource.id, resource.file_name)}
+                      >
+                        <DownloadIcon width={15} height={15} />
+                        <span className="sr-only">Download {resource.title}</span>
+                      </button>
+                    )}
                     <Link to={`/admin/resources/${resource.id}/edit`} className="btn btn--sm">
                       <PencilIcon width={15} height={15} />
                       <span className="sr-only">Edit or replace {resource.title}</span>
@@ -641,7 +660,14 @@ export function AdminResourceForm() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [semesterId, setSemesterId] = useState("");
-  const [form, setForm] = useState({ subject: "", resource_type: "", title: "", description: "" });
+  const [form, setForm] = useState({
+    subject: "",
+    resource_type: "",
+    kind: "NOTES" as ContentKind,
+    title: "",
+    description: "",
+    url: "",
+  });
   const [file, setFile] = useState<File | null>(null);
   const [current, setCurrent] = useState<Resource | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -660,8 +686,10 @@ export function AdminResourceForm() {
         setForm({
           subject: String(resource.subject),
           resource_type: resource.resource_type,
+          kind: resource.kind,
           title: resource.title,
           description: resource.description,
+          url: resource.url,
         });
       }
     })();
@@ -695,9 +723,14 @@ export function AdminResourceForm() {
     const body = new FormData();
     body.append("subject", form.subject);
     body.append("resource_type", form.resource_type);
+    body.append("kind", form.kind);
     body.append("title", form.title);
     body.append("description", form.description);
-    if (file) body.append("file", file);
+    if (form.kind === "NOTES") {
+      if (file) body.append("file", file);
+    } else {
+      body.append("url", form.url);
+    }
 
     try {
       if (editing) await api.resources.update(resourceId!, body);
@@ -829,6 +862,25 @@ export function AdminResourceForm() {
         </div>
 
         <div className="field">
+          <label htmlFor="kind">Content kind</label>
+          <select
+            id="kind"
+            className="input"
+            value={form.kind}
+            onChange={(e) => setForm({ ...form, kind: e.target.value as ContentKind })}
+            required
+          >
+            {CONTENT_KINDS.map((kind) => (
+              <option key={kind} value={kind}>{CONTENT_KIND_LABELS[kind]}</option>
+            ))}
+          </select>
+          <p className="meta">
+            Notes is an uploaded file. Reference link and YouTube video are a URL — this is what
+            the WhatsApp bot sends students who ask for that kind of content.
+          </p>
+        </div>
+
+        <div className="field">
           <label htmlFor="title">Resource title</label>
           <input
             id="title"
@@ -853,27 +905,49 @@ export function AdminResourceForm() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="file">{editing ? "Replace file" : "Upload file"}</label>
-          {current ? (
+        {form.kind === "NOTES" ? (
+          <div className="field">
+            <label htmlFor="file">{editing ? "Replace file" : "Upload file"}</label>
+            {current?.file_name ? (
+              <p className="meta">
+                Current file: {current.file_name} · {formatBytes(current.file_size)}
+              </p>
+            ) : null}
+            <input
+              id="file"
+              className="input"
+              type="file"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              required={!editing}
+            />
             <p className="meta">
-              Current file: {current.file_name} · {formatBytes(current.file_size)}
+              PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX
+              {editing ? " · leave empty to keep the current file" : ""}
             </p>
-          ) : null}
-          <input
-            id="file"
-            className="input"
-            type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            required={!editing}
-          />
-          <p className="meta">
-            PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX
-            {editing ? " · leave empty to keep the current file" : ""}
-          </p>
-          {fields.file ? <p className="meta">{fields.file}</p> : null}
-        </div>
+            {fields.file ? <p className="meta">{fields.file}</p> : null}
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="url">
+              {form.kind === "YOUTUBE" ? "YouTube URL" : "Reference URL"}
+            </label>
+            <input
+              id="url"
+              className="input"
+              type="url"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              placeholder={
+                form.kind === "YOUTUBE"
+                  ? "https://www.youtube.com/watch?v=..."
+                  : "https://..."
+              }
+              required
+            />
+            {fields.url ? <p className="meta">{fields.url}</p> : null}
+          </div>
+        )}
 
         <div className="row row--end row--tight">
           <Link to="/admin/resources" className="btn">Cancel</Link>

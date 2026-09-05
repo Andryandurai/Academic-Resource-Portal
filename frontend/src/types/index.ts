@@ -83,6 +83,8 @@ export type ResourceType =
   | "CAT_2"
   | "SEMESTER_EXAM";
 
+export type ContentKind = "NOTES" | "REFERENCE" | "YOUTUBE";
+
 export interface Resource {
   id: number;
   subject: number;
@@ -92,6 +94,10 @@ export interface Resource {
   semester_number: number;
   resource_type: ResourceType;
   resource_type_label: string;
+  kind: ContentKind;
+  kind_label: string;
+  is_link: boolean;
+  url: string;
   title: string;
   description: string;
   file_name: string;
@@ -183,6 +189,14 @@ export function resourceTypeFromSlug(slug: string): ResourceType | null {
   const entry = Object.entries(RESOURCE_TYPE_SLUGS).find(([, s]) => s === slug);
   return entry ? (entry[0] as ResourceType) : null;
 }
+
+export const CONTENT_KINDS: ContentKind[] = ["NOTES", "REFERENCE", "YOUTUBE"];
+
+export const CONTENT_KIND_LABELS: Record<ContentKind, string> = {
+  NOTES: "Notes",
+  REFERENCE: "Reference link",
+  YOUTUBE: "YouTube video",
+};
 
 export const CATEGORY_LABELS: Record<CourseCategory, string> = {
   HS: "Humanities & Social Sciences",

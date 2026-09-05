@@ -35,7 +35,8 @@ eight populated semesters or any particular subject count: curricula are data
 | Files | Django `FileField` under `MEDIA_ROOT`, served by an authenticated endpoint |
 | DB (dev) | SQLite |
 | DB (prod) | PostgreSQL via `REC_DATABASE_URL` |
-| Tests | **pytest + pytest-django** (73 tests) |
+| Messaging | **WhatsApp Cloud API** (free service-conversation replies) + optional **Groq** free-tier LLM |
+| Tests | **pytest + pytest-django** |
 | Server | **Gunicorn** |
 | Static | **WhiteNoise** (also serves the built SPA) |
 
@@ -122,9 +123,23 @@ refresh works instead of 404ing. Set `REC_SECRET_KEY`, `REC_DEBUG=0`,
 | `GET /api/resources/` | `?subject=&semester=&resource_type=&search=&uploaded_from=&uploaded_to=` |
 | `POST|PATCH|DELETE /api/resources/…` | Administrator only |
 | `GET /api/resources/:id/download/` | Authenticated file stream; `?inline=1` previews a PDF |
+| `POST /api/whatsapp/webhook/` | Meta Cloud API delivery — see [backend/whatsapp/README.md](backend/whatsapp/README.md) |
 
 Every write verb returns **403** for a student regardless of what the client
 sends. Deleting a subject that still holds resources returns **409**.
+
+---
+
+## WhatsApp bot
+
+Students never need the website or an app: they message one WhatsApp number
+and the bot sends back notes, reference links or YouTube videos straight from
+this same database — asking "which unit?" / "which kind?" when a message like
+"data structures" is ambiguous, and answering directly when it isn't (e.g.
+"unit 1 data structures notes"). Entirely free to run — see
+[backend/whatsapp/README.md](backend/whatsapp/README.md) for the architecture,
+free Meta Cloud API setup, and a dry-run mode that exercises the whole
+conversation with `curl` before any WhatsApp account exists.
 
 ---
 
@@ -142,6 +157,9 @@ Department ─┬─< Semester ──< Subject ──< Resource
   non-credit, employability, internship and project courses are out of scope, so
   there is no third value for one to be filed under.
 - Nothing limits a category to one file.
+- `Resource.kind` is `NOTES` (a file), `REFERENCE` or `YOUTUBE` (a URL each) —
+  mutually exclusive, enforced by a database check constraint as well as the
+  serializer.
 
 ---
 
