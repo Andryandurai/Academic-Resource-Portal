@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import threading
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
@@ -51,18 +50,15 @@ def webhook(request):
     except json.JSONDecodeError:
         return HttpResponse(status=200)  # Malformed body: ack anyway, nothing to retry usefully.
 
-    # Acknowledge Meta immediately. Meta enforces a short response-time budget
-    # on webhook delivery, and handling a message can itself make one or more
-    # outbound HTTPS calls back to Meta (a reply, a media upload) — blocking
-    # this response on that risks the ack itself arriving too late to count,
-    # so the actual work runs in the background instead. Dry run has no such
-    # external deadline (nothing but a test or a curl call is waiting), so it
-    # stays synchronous — deterministic for the test suite and for anyone
-    # driving /dev/simulate/ locally.
-    if settings.WHATSAPP_DRY_RUN:
-        _process_payload(payload)
-    else:
-        threading.Thread(target=_process_payload, args=(payload,), daemon=True).start()
+    # Handled synchronously and only then acknowledged. A background thread
+    # was tried here to ack Meta faster, but a free-tier host can recycle the
+    # process between requests — killing a daemon thread mid-send loses the
+    # reply with nothing to show for it (no exception, no log line, since the
+    # process is simply gone). Each outbound call already has its own
+    # timeout (see meta_client._REQUEST_TIMEOUT_SECONDS), so a message that
+    # needs one or two replies still finishes well inside Meta's own webhook
+    # timeout budget.
+    _process_payload(payload)
 
     return HttpResponse(status=200)
 
