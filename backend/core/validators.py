@@ -51,6 +51,11 @@ ALLOWED_FORMATS: tuple[FileFormat, ...] = (
         ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",),
         False,
     ),
+    # A phone photo of a handwritten or printed page — the everyday form
+    # scanned notes actually arrive in, alongside the scanned-to-PDF form.
+    FileFormat("jpg", "JPEG Image", ("image/jpeg",), True),
+    FileFormat("jpeg", "JPEG Image", ("image/jpeg",), True),
+    FileFormat("png", "PNG Image", ("image/png",), True),
 )
 
 FORMATS_BY_EXT = {fmt.ext: fmt for fmt in ALLOWED_FORMATS}
@@ -63,9 +68,12 @@ ALLOWED_EXTENSIONS = tuple(FORMATS_BY_EXT)
 _PDF_MAGIC = b"%PDF-"
 _ZIP_MAGIC = b"PK"
 _OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+_JPEG_MAGIC = b"\xff\xd8\xff"
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 _OOXML = {"docx", "pptx", "xlsx"}
 _LEGACY_OFFICE = {"doc", "ppt", "xls"}
+_JPEG = {"jpg", "jpeg"}
 
 _ILLEGAL_NAME_CHARS = re.compile(r'[\x00-\x1f\x7f<>:"|?*\\/]')
 
@@ -123,6 +131,10 @@ def _signature_matches(head: bytes, ext: str) -> bool:
         return head[:2] == _ZIP_MAGIC
     if ext in _LEGACY_OFFICE:
         return head[:8] == _OLE_MAGIC
+    if ext in _JPEG:
+        return head[:3] == _JPEG_MAGIC
+    if ext == "png":
+        return head[:8] == _PNG_MAGIC
     return False
 
 

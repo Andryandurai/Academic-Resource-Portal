@@ -38,22 +38,10 @@ export interface ResourceQuery {
 
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      request<AuthResponse>("/api/auth/login/", {
-        method: "POST",
-        body: { email, password },
-        auth: false,
-      }),
     adminLogin: (email: string, password: string) =>
       request<AuthResponse>("/api/auth/admin/login/", {
         method: "POST",
         body: { email, password },
-        auth: false,
-      }),
-    register: (name: string, email: string, password: string) =>
-      request<AuthResponse>("/api/auth/register/", {
-        method: "POST",
-        body: { name, email, password },
         auth: false,
       }),
     me: () => request<User>("/api/auth/me/"),

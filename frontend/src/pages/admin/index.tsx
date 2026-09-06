@@ -33,11 +33,14 @@ import {
   CONTENT_KINDS,
   CONTENT_KIND_LABELS,
   COURSE_TYPES,
+  EXAM_TYPES,
+  LEARNING_TYPES,
   RESOURCE_TYPES,
   RESOURCE_TYPE_LABELS,
   roman,
   type ContentKind,
   type Resource,
+  type ResourceType,
   type Semester,
   type Stats,
   type Department,
@@ -649,9 +652,8 @@ export function AdminResources() {
 }
 
 /* ------------------------------------------------------------------------- */
-export function AdminResourceForm() {
+export function AdminResourceEditForm() {
   const { resourceId } = useParams();
-  const editing = Boolean(resourceId);
   const navigate = useNavigate();
   const toast = useUi((state) => state.toast);
 
@@ -677,27 +679,22 @@ export function AdminResourceForm() {
   useEffect(() => {
     void (async () => {
       setDepartments(await api.departments.list());
-      if (resourceId) {
-        const resource = await api.resources.get(resourceId);
-        setCurrent(resource);
-        const semester = await api.semesters.get(resource.semester_id);
-        setDepartmentId(String(semester.department));
-        setSemesterId(String(resource.semester_id));
-        setForm({
-          subject: String(resource.subject),
-          resource_type: resource.resource_type,
-          kind: resource.kind,
-          title: resource.title,
-          description: resource.description,
-          url: resource.url,
-        });
-      }
+      const resource = await api.resources.get(resourceId!);
+      setCurrent(resource);
+      const semester = await api.semesters.get(resource.semester_id);
+      setDepartmentId(String(semester.department));
+      setSemesterId(String(resource.semester_id));
+      setForm({
+        subject: String(resource.subject),
+        resource_type: resource.resource_type,
+        kind: resource.kind,
+        title: resource.title,
+        description: resource.description,
+        url: resource.url,
+      });
     })();
   }, [resourceId]);
 
-  // Department → Semester → Subject → Category → File → Publish. Each step
-  // narrows the next, and every list comes from the API for the chosen parent,
-  // so a department added later works here with no code change.
   useEffect(() => {
     if (!departmentId) {
       setSemesters([]);
@@ -733,9 +730,8 @@ export function AdminResourceForm() {
     }
 
     try {
-      if (editing) await api.resources.update(resourceId!, body);
-      else await api.resources.create(body);
-      toast(editing ? "Resource updated." : "Resource uploaded successfully.", "ok");
+      await api.resources.update(resourceId!, body);
+      toast("Resource updated.", "ok");
       navigate("/admin/resources");
     } catch (caught) {
       if (caught instanceof ApiError) {
@@ -753,13 +749,13 @@ export function AdminResourceForm() {
         items={[
           { label: "Dashboard", to: "/admin" },
           { label: "Resources", to: "/admin/resources" },
-          { label: editing ? "Edit Resource" : "Upload Resource" },
+          { label: "Edit Resource" },
         ]}
       />
       <PageHead
         eyebrow="Resource Management"
-        title={editing ? "Edit Resource" : "Upload Resource"}
-        lead="Select a semester and subject, choose the category, then upload the file and publish."
+        title="Edit Resource"
+        lead="Change the category, kind, title or replace the file/link, then save."
       />
 
       <form className="panel stack-4" style={{ maxWidth: "48rem" }} onSubmit={onSubmit} noValidate>
@@ -826,10 +822,7 @@ export function AdminResourceForm() {
               <option value="">
                 {!semesterId
                   ? "Select a semester first"
-                  : // A semester can hold no courses at all — Food Technology's
-                    // final term is project-only. Say so rather than offer an
-                    // empty "Select a subject" the administrator cannot satisfy.
-                    subjects.length === 0
+                  : subjects.length === 0
                     ? "No subjects in this semester"
                     : "Select a subject"}
               </option>
@@ -874,10 +867,6 @@ export function AdminResourceForm() {
               <option key={kind} value={kind}>{CONTENT_KIND_LABELS[kind]}</option>
             ))}
           </select>
-          <p className="meta">
-            Notes is an uploaded file. Reference link and YouTube video are a URL — this is what
-            the WhatsApp bot sends students who ask for that kind of content.
-          </p>
         </div>
 
         <div className="field">
@@ -907,7 +896,7 @@ export function AdminResourceForm() {
 
         {form.kind === "NOTES" ? (
           <div className="field">
-            <label htmlFor="file">{editing ? "Replace file" : "Upload file"}</label>
+            <label htmlFor="file">Replace file</label>
             {current?.file_name ? (
               <p className="meta">
                 Current file: {current.file_name} · {formatBytes(current.file_size)}
@@ -917,14 +906,10 @@ export function AdminResourceForm() {
               id="file"
               className="input"
               type="file"
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              required={!editing}
             />
-            <p className="meta">
-              PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX
-              {editing ? " · leave empty to keep the current file" : ""}
-            </p>
+            <p className="meta">PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX · leave empty to keep the current file</p>
             {fields.file ? <p className="meta">{fields.file}</p> : null}
           </div>
         ) : (
@@ -952,7 +937,338 @@ export function AdminResourceForm() {
         <div className="row row--end row--tight">
           <Link to="/admin/resources" className="btn">Cancel</Link>
           <button type="submit" className="btn btn--primary" disabled={pending}>
-            {pending ? "Uploading..." : editing ? "Save Changes" : "Publish Resource"}
+            {pending ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+// One subject, every category at once. A slot is keyed "RESOURCE_TYPE:KIND" —
+// e.g. "UNIT_1:NOTES" — since a subject can carry a file for a unit's notes
+// and, independently, a link for that same unit's reference or video.
+type SlotKind = "NOTES" | "REFERENCE" | "YOUTUBE";
+type SlotStatus = "idle" | "uploading" | "done" | "error";
+
+interface SlotValue {
+  file: File | null;
+  url: string;
+  status: SlotStatus;
+  error?: string;
+}
+
+const CATEGORY_SECTIONS: { title: string; types: ResourceType[] }[] = [
+  { title: "Learning material", types: LEARNING_TYPES },
+  { title: "Examination resources", types: EXAM_TYPES },
+];
+const SLOT_KINDS: { kind: SlotKind; label: string }[] = [
+  { kind: "NOTES", label: "Notes (file)" },
+  { kind: "REFERENCE", label: "Reference link" },
+  { kind: "YOUTUBE", label: "YouTube link" },
+];
+
+function slotKey(type: ResourceType, kind: SlotKind): string {
+  return `${type}:${kind}`;
+}
+
+function emptySlots(): Record<string, SlotValue> {
+  const slots: Record<string, SlotValue> = {};
+  for (const type of RESOURCE_TYPES) {
+    for (const { kind } of SLOT_KINDS) {
+      slots[slotKey(type, kind)] = { file: null, url: "", status: "idle" };
+    }
+  }
+  return slots;
+}
+
+export function AdminResourceBulkForm() {
+  const toast = useUi((state) => state.toast);
+
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentId, setDepartmentId] = useState("");
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [semesterId, setSemesterId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [slots, setSlots] = useState<Record<string, SlotValue>>(emptySlots);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    void api.departments.list().then(setDepartments);
+  }, []);
+
+  useEffect(() => {
+    if (!departmentId) {
+      setSemesters([]);
+      return;
+    }
+    void api.semesters.list(departmentId).then(setSemesters);
+  }, [departmentId]);
+
+  useEffect(() => {
+    if (!semesterId) {
+      setSubjects([]);
+      return;
+    }
+    void api.subjects.list({ semester: semesterId }).then((page) => setSubjects(page.results));
+  }, [semesterId]);
+
+  const subject = subjects.find((s) => String(s.id) === subjectId) ?? null;
+
+  function setSlot(key: string, patch: Partial<SlotValue>) {
+    setSlots((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  }
+
+  function filledEntries(): [string, ResourceType, SlotKind, SlotValue][] {
+    const entries: [string, ResourceType, SlotKind, SlotValue][] = [];
+    for (const type of RESOURCE_TYPES) {
+      for (const { kind } of SLOT_KINDS) {
+        const key = slotKey(type, kind);
+        const value = slots[key];
+        if (value.status === "done") continue;
+        if (kind === "NOTES" ? value.file : value.url.trim()) {
+          entries.push([key, type, kind, value]);
+        }
+      }
+    }
+    return entries;
+  }
+
+  const pendingCount = filledEntries().length;
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const entries = filledEntries();
+    if (!subject || entries.length === 0) return;
+
+    setSubmitting(true);
+    for (const [key] of entries) setSlot(key, { status: "uploading", error: undefined });
+
+    // Fired concurrently, not one at a time: each slot is an independent
+    // resource as far as the API is concerned, so there is no reason to make
+    // an administrator wait for eleven sequential round trips when uploading
+    // a whole subject's material in one sitting.
+    const results = await Promise.allSettled(
+      entries.map(async ([key, type, kind, value]) => {
+        const body = new FormData();
+        body.append("subject", subjectId);
+        body.append("resource_type", type);
+        body.append("kind", kind);
+        const label = `${RESOURCE_TYPE_LABELS[type]} ${CONTENT_KIND_LABELS[kind]}`;
+        body.append("title", label);
+        body.append("description", "");
+        if (kind === "NOTES") body.append("file", value.file as File);
+        else body.append("url", value.url.trim());
+        await api.resources.create(body);
+        return key;
+      }),
+    );
+
+    let succeeded = 0;
+    results.forEach((result, i) => {
+      const [key] = entries[i];
+      if (result.status === "fulfilled") {
+        succeeded += 1;
+        setSlot(key, { status: "done", file: null, url: "" });
+      } else {
+        const message =
+          result.reason instanceof ApiError ? result.reason.message : "Upload failed.";
+        setSlot(key, { status: "error", error: message });
+      }
+    });
+
+    setSubmitting(false);
+    if (succeeded === entries.length) {
+      toast(`${succeeded} resource${succeeded === 1 ? "" : "s"} uploaded successfully.`, "ok");
+    } else {
+      toast(
+        `${succeeded} of ${entries.length} uploaded — check the categories marked with an error.`,
+        succeeded > 0 ? "info" : "crit",
+      );
+    }
+  }
+
+  return (
+    <>
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", to: "/admin" },
+          { label: "Resources", to: "/admin/resources" },
+          { label: "Upload Resources" },
+        ]}
+      />
+      <PageHead
+        eyebrow="Resource Management"
+        title="Upload Resources"
+        lead="Pick one subject, then fill in as many categories as you have material for — everything is published in one go."
+      />
+
+      <form className="panel stack-6" onSubmit={onSubmit} noValidate>
+        <div className="grid grid-3">
+          <div className="field">
+            <label htmlFor="department">Department</label>
+            <select
+              id="department"
+              className="input"
+              value={departmentId}
+              onChange={(e) => {
+                setDepartmentId(e.target.value);
+                setSemesterId("");
+                setSubjectId("");
+                setSlots(emptySlots());
+              }}
+              required
+            >
+              <option value="">Select a department</option>
+              {departments.map((d) => (
+                <option key={d.id} value={String(d.id)} disabled={!d.has_curriculum}>
+                  {d.name}
+                  {d.has_curriculum ? "" : " — curriculum not added yet"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="semester">Semester</label>
+            <select
+              id="semester"
+              className="input"
+              value={semesterId}
+              onChange={(e) => {
+                setSemesterId(e.target.value);
+                setSubjectId("");
+                setSlots(emptySlots());
+              }}
+              disabled={!departmentId}
+              required
+            >
+              <option value="">
+                {departmentId ? "Select a semester" : "Select a department first"}
+              </option>
+              {semesters.map((s) => (
+                <option key={s.id} value={String(s.id)}>
+                  Semester {roman(s.semester_number)} ({s.subject_count} subjects)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="subject">Subject</label>
+            <select
+              id="subject"
+              className="input"
+              value={subjectId}
+              onChange={(e) => {
+                setSubjectId(e.target.value);
+                setSlots(emptySlots());
+              }}
+              disabled={!semesterId}
+              required
+            >
+              <option value="">
+                {!semesterId
+                  ? "Select a semester first"
+                  : subjects.length === 0
+                    ? "No subjects in this semester"
+                    : "Select a subject"}
+              </option>
+              {subjects.map((s) => (
+                <option key={s.id} value={String(s.id)}>
+                  {s.course_code ? `${s.course_code} — ` : ""}
+                  {s.course_title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {subject ? (
+          <div className="stack-4">
+            <SectionHead
+              title={`${subject.course_code ? `${subject.course_code} — ` : ""}${subject.course_title}`}
+              detail="Fill in whatever you have — leave the rest blank."
+            />
+
+            {CATEGORY_SECTIONS.map((section) => (
+              <div key={section.title} className="stack-3">
+                <p className="label">{section.title}</p>
+                <div className="scroll-x">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Category</th>
+                        {SLOT_KINDS.map(({ kind, label }) => (
+                          <th scope="col" key={kind}>{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.types.map((type) => (
+                        <tr key={type}>
+                          <td className="nowrap"><b>{RESOURCE_TYPE_LABELS[type]}</b></td>
+                          {SLOT_KINDS.map(({ kind }) => {
+                            const key = slotKey(type, kind);
+                            const value = slots[key];
+                            return (
+                              <td key={key} style={{ minWidth: "14rem" }}>
+                                {value.status === "done" ? (
+                                  <span className="chip chip--ok">Uploaded</span>
+                                ) : kind === "NOTES" ? (
+                                  <input
+                                    className="input"
+                                    type="file"
+                                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                    disabled={value.status === "uploading" || submitting}
+                                    onChange={(e) =>
+                                      setSlot(key, { file: e.target.files?.[0] ?? null })
+                                    }
+                                  />
+                                ) : (
+                                  <input
+                                    className="input"
+                                    type="url"
+                                    placeholder={
+                                      kind === "YOUTUBE" ? "https://youtu.be/..." : "https://..."
+                                    }
+                                    value={value.url}
+                                    disabled={value.status === "uploading" || submitting}
+                                    onChange={(e) => setSlot(key, { url: e.target.value })}
+                                  />
+                                )}
+                                {value.status === "error" ? (
+                                  <p className="meta" style={{ color: "var(--crit-ink)" }}>
+                                    {value.error}
+                                  </p>
+                                ) : null}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="row row--end row--tight">
+          <Link to="/admin/resources" className="btn">Done</Link>
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={!subject || pendingCount === 0 || submitting}
+          >
+            {submitting
+              ? "Uploading..."
+              : pendingCount > 0
+                ? `Upload ${pendingCount} resource${pendingCount === 1 ? "" : "s"}`
+                : "Upload"}
           </button>
         </div>
       </form>

@@ -12,6 +12,9 @@ backend/*.sqlite3-shm
 backend/staticfiles/
 # Uploaded resource files — never commit user content
 backend/media/
+# Source material for `ingest_studies` — already published to Supabase
+# Storage; the raw files do not belong in git.
+/studies/
 
 # Node / Vite
 node_modules/

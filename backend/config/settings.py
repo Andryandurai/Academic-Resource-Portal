@@ -232,6 +232,18 @@ if REC_S3_ACCESS_KEY_ID:
     # download endpoint, so no object ever needs a public ACL or a signed URL.
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
+    # Supabase Storage's S3 compatibility layer does not implement multipart
+    # upload, which boto3 otherwise switches to automatically above 8MB. The
+    # threshold is raised past REC_MAX_UPLOAD_BYTES so every upload this site
+    # accepts is always sent as one plain PUT.
+    from boto3.s3.transfer import TransferConfig as _S3TransferConfig
+
+    AWS_S3_TRANSFER_CONFIG = _S3TransferConfig(multipart_threshold=200 * 1024 * 1024)
+    # django-storages otherwise HEADs the bucket before every upload to find an
+    # unused filename — a second network round trip that only matters if two
+    # files could collide. They cannot: resource_upload_path names every file
+    # with a fresh UUID (see resources/models.py), so the check is skipped.
+    AWS_S3_FILE_OVERWRITE = True
     _default_storage_backend = "storages.backends.s3.S3Storage"
 else:
     _default_storage_backend = "django.core.files.storage.FileSystemStorage"
