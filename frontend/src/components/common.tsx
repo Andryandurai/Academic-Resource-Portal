@@ -30,9 +30,9 @@ export function Brand({ to = "/", admin = false }: { to?: string; admin?: boolea
         REC
       </span>
       <span className="brand__text">
-        <span className="brand__name">{admin ? "REC Admin" : "REC"}</span>
+        <span className="brand__name">{admin ? "REC Faculty" : "REC"}</span>
         <span className="brand__sub">
-          {admin ? "Administration" : PORTAL_NAME}
+          {admin ? "Faculty portal" : PORTAL_NAME}
         </span>
       </span>
     </Link>

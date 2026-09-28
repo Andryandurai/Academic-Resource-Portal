@@ -10,7 +10,7 @@ from django.http import FileResponse, Http404
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from core.permissions import IsAdminOrReadOnly
@@ -78,7 +78,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
             return ResourceWriteSerializer
         return ResourceSerializer
 
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=["get"], permission_classes=[AllowAny])
     def download(self, request, pk=None):
         """Stream the stored file to any signed-in user.
 
@@ -115,7 +115,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
         response["Cache-Control"] = "private, max-age=0, must-revalidate"
         return response
 
-    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def recent(self, request):
         """The latest uploads, for the dashboards.
 
@@ -136,7 +136,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
             ResourceSerializer(queryset[:limit], many=True, context={"request": request}).data
         )
 
-    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated], url_path="types")
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path="types")
     def types(self, request):
         """The eight categories, so the UI never hard-codes the vocabulary."""
         from .models import EXAM_RESOURCE_TYPES, LEARNING_RESOURCE_TYPES

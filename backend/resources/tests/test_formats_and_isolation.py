@@ -393,8 +393,11 @@ def test_logout_invalidates_the_refresh_token(api, student_user):
     )
 
 
-def test_requests_without_a_token_are_refused_after_logout(api, curriculum):
-    """What the browser does after the store is cleared: no Authorization header."""
+def test_requests_without_a_token_only_reach_public_reads(api, curriculum):
+    """What a student's browser does: no Authorization header at all."""
     api.credentials()
-    for path in ["/api/subjects/", "/api/semesters/", "/api/resources/", "/api/stats/", "/api/auth/me/"]:
+    for path in ["/api/subjects/", "/api/semesters/", "/api/resources/", "/api/stats/"]:
+        assert api.get(path).status_code == 200, path
+    # Account endpoints and faculty tooling remain closed.
+    for path in ["/api/auth/me/", "/api/auth/users/"]:
         assert api.get(path).status_code == 401, path

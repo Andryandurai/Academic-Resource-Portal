@@ -13,26 +13,18 @@ import {
   AdminSettings,
   AdminSubjectForm,
   AdminSubjects,
-  AdminUsers,
 } from "./pages/admin";
-import { Login, Register } from "./pages/auth/Login";
-import { Landing } from "./pages/Landing";
+import { Login } from "./pages/auth/Login";
 import { DepartmentPending, Departments } from "./pages/student/Departments";
 import {
   Dashboard,
-  Profile,
   ResourceCategory,
   SemesterDetail,
   Semesters,
   SubjectDetail,
   Subjects,
 } from "./pages/student";
-import {
-  RedirectIfAuthenticated,
-  RequireAdmin,
-  RequireAuth,
-  RequireDepartment,
-} from "./routes/guards";
+import { RedirectIfAuthenticated, RequireAdmin, RequireDepartment } from "./routes/guards";
 import { useSession } from "./stores/session";
 
 function Forbidden() {
@@ -42,11 +34,11 @@ function Forbidden() {
       <EmptyState
         icon={<ShieldIcon />}
         title="Access denied"
-        detail="Your account does not have administrator privileges. Administrator tools are restricted to department administrators."
+        detail="This area is for faculty."
         action={
           <div className="row row--tight">
-            <Link to="/dashboard" className="btn btn--primary">Go to your dashboard</Link>
-            <Link to="/" className="btn">Homepage</Link>
+            <Link to="/faculty" className="btn btn--primary">Faculty sign-in</Link>
+            <Link to="/" className="btn">Student portal</Link>
           </div>
         }
       />
@@ -63,7 +55,7 @@ function NotFound() {
         detail="The page you are looking for does not exist, or the subject or resource it referred to has been removed."
         action={
           <div className="row row--tight">
-            <Link to="/" className="btn btn--primary">Go to homepage</Link>
+            <Link to="/" className="btn btn--primary">Go to the portal</Link>
             <Link to="/subjects" className="btn">Browse subjects</Link>
           </div>
         }
@@ -76,8 +68,8 @@ function NotFound() {
 export function App() {
   const hydrate = useSession((state) => state.hydrate);
 
-  // Re-validates a persisted token against the API before the first protected
-  // route renders, so a revoked or demoted account is caught on boot.
+  // Re-validates a persisted faculty token against the API before the first
+  // protected route renders, so a revoked account is caught on boot.
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
@@ -86,64 +78,20 @@ export function App() {
     <BrowserRouter>
       <a href="#main" className="sr-only">Skip to main content</a>
       <Routes>
-        {/* Public */}
-        <Route path="/" element={<Landing />} />
-        <Route
-          path="/login"
-          element={
-            <RedirectIfAuthenticated>
-              <Login />
-            </RedirectIfAuthenticated>
-          }
-        />
-        <Route
-          path="/admin/login"
-          element={
-            <RedirectIfAuthenticated>
-              <Login admin />
-            </RedirectIfAuthenticated>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <RedirectIfAuthenticated>
-              <Register />
-            </RedirectIfAuthenticated>
-          }
-        />
-        <Route path="/forbidden" element={<Forbidden />} />
-
-        {/* Department selection — the first step after a student signs in. */}
-        <Route
-          path="/departments"
-          element={
-            <RequireAuth>
-              <Departments />
-            </RequireAuth>
-          }
-        />
-
-        {/* Student. Every screen below is scoped to the chosen department. */}
-        <Route
-          element={
-            <RequireAuth>
-              <StudentLayout />
-            </RequireAuth>
-          }
-        >
+        {/* Students: no sign-in. The dashboard is the landing page; a student
+            who has not chosen a department yet is sent to the picker first. */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/departments" element={<Departments />} />
+        <Route element={<StudentLayout />}>
           {/* Outside RequireDepartment: this is where a department with no
               curriculum yet lands, so requiring one would loop. */}
           <Route path="/departments/:departmentId" element={<DepartmentPending />} />
         </Route>
-
         <Route
           element={
-            <RequireAuth>
-              <RequireDepartment>
-                <StudentLayout />
-              </RequireDepartment>
-            </RequireAuth>
+            <RequireDepartment>
+              <StudentLayout />
+            </RequireDepartment>
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
@@ -155,10 +103,17 @@ export function App() {
             path="/subjects/:subjectId/resources/:resourceType"
             element={<ResourceCategory />}
           />
-          <Route path="/profile" element={<Profile />} />
         </Route>
 
-        {/* Administrator */}
+        {/* Faculty: the only login. */}
+        <Route
+          path="/faculty"
+          element={
+            <RedirectIfAuthenticated>
+              <Login />
+            </RedirectIfAuthenticated>
+          }
+        />
         <Route
           element={
             <RequireAdmin>
@@ -166,17 +121,21 @@ export function App() {
             </RequireAdmin>
           }
         >
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/subjects" element={<AdminSubjects />} />
-          <Route path="/admin/subjects/new" element={<AdminSubjectForm />} />
-          <Route path="/admin/subjects/:subjectId/edit" element={<AdminSubjectForm />} />
-          <Route path="/admin/resources" element={<AdminResources />} />
-          <Route path="/admin/resources/new" element={<AdminResourceBulkForm />} />
-          <Route path="/admin/resources/:resourceId/edit" element={<AdminResourceEditForm />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/faculty/dashboard" element={<AdminDashboard />} />
+          <Route path="/faculty/subjects" element={<AdminSubjects />} />
+          <Route path="/faculty/subjects/new" element={<AdminSubjectForm />} />
+          <Route path="/faculty/subjects/:subjectId/edit" element={<AdminSubjectForm />} />
+          <Route path="/faculty/resources" element={<AdminResources />} />
+          <Route path="/faculty/resources/new" element={<AdminResourceBulkForm />} />
+          <Route path="/faculty/resources/:resourceId/edit" element={<AdminResourceEditForm />} />
+          <Route path="/faculty/settings" element={<AdminSettings />} />
         </Route>
 
+        {/* Old links and bookmarks. */}
+        <Route path="/admin/*" element={<Navigate to="/faculty" replace />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/register" element={<Navigate to="/" replace />} />
+        <Route path="/forbidden" element={<Forbidden />} />
         <Route path="/index.html" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

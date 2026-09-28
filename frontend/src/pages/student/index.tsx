@@ -23,12 +23,10 @@ import {
   LayersIcon,
   SearchIcon,
 } from "../../components/Icons";
-import { LogoutButton } from "../../components/LogoutButton";
 import { api } from "../../services/api";
 import { ApiError } from "../../services/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useDepartment } from "../../stores/department";
-import { useSession } from "../../stores/session";
 import { useUi } from "../../stores/ui";
 import {
   CATEGORY_LABELS,
@@ -280,7 +278,6 @@ function SubjectFilters({ semesters, showSemester = true }: { semesters: Semeste
 
 /* ------------------------------------------------------------------ pages -- */
 export function Dashboard() {
-  const user = useSession((state) => state.user);
   const department = useDepartment((state) => state.selected);
   const departmentId = department?.id;
   useDocumentTitle(department?.name, "Dashboard");
@@ -306,7 +303,7 @@ export function Dashboard() {
     <>
       <PageHead
         eyebrow={department?.name ?? "Academic Resource Portal"}
-        title={`Welcome back, ${user?.name.split(" ")[0] ?? "Student"}`}
+        title="Welcome"
         lead="Access your department's semester-wise subjects, academic notes and examination resources in one place."
         actions={
           <>
@@ -795,35 +792,6 @@ export function ResourceCategory() {
           ))}
         </ul>
       )}
-    </>
-  );
-}
-
-export function Profile() {
-  const user = useSession((state) => state.user);
-  const department = useDepartment((state) => state.selected);
-  useDocumentTitle(department?.name, "Profile");
-  if (!user) return null;
-
-  return (
-    <>
-      <PageHead eyebrow="Account" title="Profile" lead="Your account details for the portal." />
-      <section className="panel" style={{ maxWidth: "48rem" }}>
-        <dl className="factgrid">
-          <Fact label="Name" value={user.name} />
-          <Fact label="Email" value={user.email} />
-          <Fact label="Role" value="Student" />
-          <Fact label="Department" value={department?.name ?? user.department_name ?? "Not selected"} />
-          <Fact label="Institution" value="Rajalakshmi Engineering College" />
-          <Fact label="Member since" value={formatDate(user.created_at)} />
-        </dl>
-        <div className="row row--between" style={{ marginTop: "var(--s5)" }}>
-          <p className="muted" style={{ margin: 0 }}>
-            Students have read-only access to published academic resources.
-          </p>
-          <LogoutButton variant="student" className="btn" />
-        </div>
-      </section>
     </>
   );
 }

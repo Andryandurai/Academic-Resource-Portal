@@ -22,7 +22,7 @@ import {
   PlusIcon,
   TrashIcon,
   UploadIcon,
-  UsersIcon,
+  LayersIcon,
 } from "../../components/Icons";
 import { api } from "../../services/api";
 import { ApiError } from "../../services/client";
@@ -45,7 +45,6 @@ import {
   type Stats,
   type Department,
   type Subject,
-  type UserRow,
 } from "../../types";
 
 function useLoad<T>(loader: () => Promise<T>, deps: unknown[]) {
@@ -87,13 +86,13 @@ export function AdminDashboard() {
   return (
     <>
       <PageHead
-        eyebrow="Administration"
+        eyebrow="Faculty"
         title="Dashboard"
         lead="Manage the college's subject catalogue and the resources published to students."
         actions={
           <>
-            <Link to="/admin/subjects/new" className="btn"><PlusIcon width={15} height={15} /> Add Subject</Link>
-            <Link to="/admin/resources/new" className="btn btn--primary"><UploadIcon width={15} height={15} /> Add Resource</Link>
+            <Link to="/faculty/subjects/new" className="btn"><PlusIcon width={15} height={15} /> Add Subject</Link>
+            <Link to="/faculty/resources/new" className="btn btn--primary"><UploadIcon width={15} height={15} /> Add Resource</Link>
           </>
         }
       />
@@ -101,7 +100,7 @@ export function AdminDashboard() {
       <div className="grid grid-4 stack-8">
         <Stat value={stats.subjects} label="Total Subjects" icon={<BookIcon />} />
         <Stat value={stats.resources} label="Total Resources" icon={<FileIcon />} />
-        <Stat value={stats.students ?? 0} label="Total Students" icon={<UsersIcon />} />
+        <Stat value={stats.departments ?? 0} label="Departments" icon={<LayersIcon />} />
         <Stat
           value={stats.exam_resources}
           label="Exam Resources"
@@ -115,19 +114,19 @@ export function AdminDashboard() {
         <div className="grid grid-3">
           {[
             {
-              to: "/admin/subjects/new",
+              to: "/faculty/subjects/new",
               icon: <PlusIcon width={18} height={18} />,
               title: "Add Subject",
               sub: "Add a course to a department catalogue",
             },
             {
-              to: "/admin/resources/new",
+              to: "/faculty/resources/new",
               icon: <UploadIcon width={18} height={18} />,
               title: "Upload Resource",
               sub: "Publish notes or examination material",
             },
             {
-              to: "/admin/resources",
+              to: "/faculty/resources",
               icon: <FileIcon width={18} height={18} />,
               title: "Manage Resources",
               sub: "Edit, replace or delete published files",
@@ -149,13 +148,13 @@ export function AdminDashboard() {
       <section>
         <SectionHead
           title="Recent Uploads"
-          action={<Link to="/admin/resources" className="btn btn--sm">View all resources</Link>}
+          action={<Link to="/faculty/resources" className="btn btn--sm">View all resources</Link>}
         />
         {data.recent.length === 0 ? (
           <EmptyState
             title="No resources found."
             detail="Nothing has been published yet. Upload the first unit notes or examination material."
-            action={<Link to="/admin/resources/new" className="btn btn--primary">Add Resource</Link>}
+            action={<Link to="/faculty/resources/new" className="btn btn--primary">Add Resource</Link>}
           />
         ) : (
           <div className="scroll-x">
@@ -183,7 +182,7 @@ export function AdminDashboard() {
                     <td className="nowrap">{formatDate(resource.created_at)}</td>
                     <td>{resource.uploaded_by_name ?? "—"}</td>
                     <td className="actions">
-                      <Link to={`/admin/resources/${resource.id}/edit`} className="btn btn--sm">Manage</Link>
+                      <Link to={`/faculty/resources/${resource.id}/edit`} className="btn btn--sm">Manage</Link>
                     </td>
                   </tr>
                 ))}
@@ -233,10 +232,10 @@ export function AdminSubjects() {
   return (
     <>
       <PageHead
-        eyebrow="Administration"
+        eyebrow="Faculty"
         title="Subject Management"
         lead="View, search and maintain the subject catalogue across departments."
-        actions={<Link to="/admin/subjects/new" className="btn btn--primary"><PlusIcon width={15} height={15} /> Add Subject</Link>}
+        actions={<Link to="/faculty/subjects/new" className="btn btn--primary"><PlusIcon width={15} height={15} /> Add Subject</Link>}
       />
 
       <form className="panel row row--tight" role="search" onSubmit={(e) => e.preventDefault()}>
@@ -302,7 +301,7 @@ export function AdminSubjects() {
                 <td className="tabular">{subject.p}</td>
                 <td className="tabular"><b>{subject.credits}</b></td>
                 <td className="actions">
-                  <Link to={`/admin/subjects/${subject.id}/edit`} className="btn btn--sm">
+                  <Link to={`/faculty/subjects/${subject.id}/edit`} className="btn btn--sm">
                     <PencilIcon width={15} height={15} />
                     <span className="sr-only">Edit {subject.course_title}</span>
                   </Link>
@@ -388,7 +387,7 @@ export function AdminSubjectForm() {
       if (editing) await api.subjects.update(subjectId!, body);
       else await api.subjects.create(body);
       toast(editing ? "Subject updated." : "Subject created.", "ok");
-      navigate("/admin/subjects");
+      navigate("/faculty/subjects");
     } catch (caught) {
       if (caught instanceof ApiError) {
         setError(caught.message);
@@ -406,8 +405,8 @@ export function AdminSubjectForm() {
     <>
       <Breadcrumbs
         items={[
-          { label: "Dashboard", to: "/admin" },
-          { label: "Subjects", to: "/admin/subjects" },
+          { label: "Dashboard", to: "/faculty/dashboard" },
+          { label: "Subjects", to: "/faculty/subjects" },
           { label: editing ? "Edit Subject" : "Add Subject" },
         ]}
       />
@@ -482,7 +481,7 @@ export function AdminSubjectForm() {
         </fieldset>
 
         <div className="row row--end row--tight">
-          <Link to="/admin/subjects" className="btn">Cancel</Link>
+          <Link to="/faculty/subjects" className="btn">Cancel</Link>
           <button type="submit" className="btn btn--primary" disabled={pending}>
             {pending ? "Saving..." : editing ? "Save Changes" : "Create Subject"}
           </button>
@@ -541,17 +540,17 @@ export function AdminResources() {
   return (
     <>
       <PageHead
-        eyebrow="Administration"
+        eyebrow="Faculty"
         title="Resources"
         lead="Every file published to students, across all semesters and subjects."
-        actions={<Link to="/admin/resources/new" className="btn btn--primary"><PlusIcon width={15} height={15} /> Add Resource</Link>}
+        actions={<Link to="/faculty/resources/new" className="btn btn--primary"><PlusIcon width={15} height={15} /> Add Resource</Link>}
       />
 
       <form className="panel filterbar" role="search" onSubmit={(e) => e.preventDefault()}>
         <input
           className="input"
           type="search"
-          placeholder="Search by resource title, course code or subject..."
+          placeholder="Search title, code or subject"
           defaultValue={params.get("q") ?? ""}
           onChange={(e) => update("q", e.target.value)}
           aria-label="Search resources"
@@ -576,7 +575,7 @@ export function AdminResources() {
         <EmptyState
           title="No resources found."
           detail="Nothing matches the current filters."
-          action={<Link to="/admin/resources/new" className="btn btn--primary">Add Resource</Link>}
+          action={<Link to="/faculty/resources/new" className="btn btn--primary">Add Resource</Link>}
         />
       ) : (
         <div className="scroll-x">
@@ -632,7 +631,7 @@ export function AdminResources() {
                         <span className="sr-only">Download {resource.title}</span>
                       </button>
                     )}
-                    <Link to={`/admin/resources/${resource.id}/edit`} className="btn btn--sm">
+                    <Link to={`/faculty/resources/${resource.id}/edit`} className="btn btn--sm">
                       <PencilIcon width={15} height={15} />
                       <span className="sr-only">Edit or replace {resource.title}</span>
                     </Link>
@@ -732,7 +731,7 @@ export function AdminResourceEditForm() {
     try {
       await api.resources.update(resourceId!, body);
       toast("Resource updated.", "ok");
-      navigate("/admin/resources");
+      navigate("/faculty/resources");
     } catch (caught) {
       if (caught instanceof ApiError) {
         setError(caught.message);
@@ -747,8 +746,8 @@ export function AdminResourceEditForm() {
     <>
       <Breadcrumbs
         items={[
-          { label: "Dashboard", to: "/admin" },
-          { label: "Resources", to: "/admin/resources" },
+          { label: "Dashboard", to: "/faculty/dashboard" },
+          { label: "Resources", to: "/faculty/resources" },
           { label: "Edit Resource" },
         ]}
       />
@@ -935,7 +934,7 @@ export function AdminResourceEditForm() {
         )}
 
         <div className="row row--end row--tight">
-          <Link to="/admin/resources" className="btn">Cancel</Link>
+          <Link to="/faculty/resources" className="btn">Cancel</Link>
           <button type="submit" className="btn btn--primary" disabled={pending}>
             {pending ? "Saving..." : "Save Changes"}
           </button>
@@ -1094,8 +1093,8 @@ export function AdminResourceBulkForm() {
     <>
       <Breadcrumbs
         items={[
-          { label: "Dashboard", to: "/admin" },
-          { label: "Resources", to: "/admin/resources" },
+          { label: "Dashboard", to: "/faculty/dashboard" },
+          { label: "Resources", to: "/faculty/resources" },
           { label: "Upload Resources" },
         ]}
       />
@@ -1197,10 +1196,10 @@ export function AdminResourceBulkForm() {
               <div key={section.title} className="stack-3">
                 <p className="label">{section.title}</p>
                 <div className="scroll-x">
-                  <table className="table">
+                  <table className="table table--fixed" style={{ minWidth: "46rem" }}>
                     <thead>
                       <tr>
-                        <th scope="col">Category</th>
+                        <th scope="col" style={{ width: "9rem" }}>Category</th>
                         {SLOT_KINDS.map(({ kind, label }) => (
                           <th scope="col" key={kind}>{label}</th>
                         ))}
@@ -1214,7 +1213,7 @@ export function AdminResourceBulkForm() {
                             const key = slotKey(type, kind);
                             const value = slots[key];
                             return (
-                              <td key={key} style={{ minWidth: "14rem" }}>
+                              <td key={key}>
                                 {value.status === "done" ? (
                                   <span className="chip chip--ok">Uploaded</span>
                                 ) : kind === "NOTES" ? (
@@ -1258,7 +1257,7 @@ export function AdminResourceBulkForm() {
         ) : null}
 
         <div className="row row--end row--tight">
-          <Link to="/admin/resources" className="btn">Done</Link>
+          <Link to="/faculty/resources" className="btn">Done</Link>
           <button
             type="submit"
             className="btn btn--primary"
@@ -1277,57 +1276,6 @@ export function AdminResourceBulkForm() {
 }
 
 /* ------------------------------------------------------------------------- */
-export function AdminUsers() {
-  const { data, loading, error } = useLoad(() => api.auth.users(), []);
-  if (loading) return <Loading />;
-  if (error || !data) return <Notice kind="crit">{error}</Notice>;
-
-  const students = data.filter((u: UserRow) => u.role === "STUDENT");
-  const admins = data.filter((u: UserRow) => u.role === "ADMIN");
-
-  return (
-    <>
-      <PageHead
-        eyebrow="Administration"
-        title="Users"
-        lead="Accounts registered on the portal. Administrator accounts are created on the server."
-      />
-      <div className="grid grid-2 stack-8" style={{ maxWidth: "26rem" }}>
-        <Stat value={students.length} label="Students" />
-        <Stat value={admins.length} label="Administrators" />
-      </div>
-      <div className="scroll-x">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Email</th>
-              <th scope="col">Role</th>
-              <th scope="col">Uploads</th>
-              <th scope="col">Registered</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((user: UserRow) => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>
-                  <span className={user.role === "ADMIN" ? "chip chip--data" : "chip"}>
-                    {user.role === "ADMIN" ? "Administrator" : "Student"}
-                  </span>
-                </td>
-                <td className="tabular">{user.upload_count}</td>
-                <td className="nowrap">{formatDate(user.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
 export function AdminSettings() {
   const user = useSession((state) => state.user);
   const theme = useUi((state) => state.theme);
@@ -1336,14 +1284,14 @@ export function AdminSettings() {
 
   return (
     <>
-      <PageHead eyebrow="Administration" title="Settings" lead="Portal configuration and catalogue state." />
+      <PageHead eyebrow="Faculty" title="Settings" lead="Portal configuration and catalogue state." />
 
       <section className="stack-8">
         <SectionHead title="Your account" />
         <dl className="factgrid">
           <Fact label="Name" value={user?.name ?? "—"} />
           <Fact label="Email" value={user?.email ?? "—"} />
-          <Fact label="Role" value="Administrator" />
+          <Fact label="Role" value="Faculty" />
           <Fact label="Scope" value="All departments" />
         </dl>
       </section>
@@ -1380,7 +1328,7 @@ export function AdminSettings() {
         <Notice kind="warn" title="Before deploying to production">
           <ul>
             <li>Set a unique <code>REC_SECRET_KEY</code>.</li>
-            <li>Change any seeded administrator password.</li>
+            <li>Change any seeded faculty password.</li>
             <li>Serve over HTTPS and set <code>REC_ALLOWED_HOSTS</code>.</li>
             <li>Back up the database and the media directory together.</li>
           </ul>

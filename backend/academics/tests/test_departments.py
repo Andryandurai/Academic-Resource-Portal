@@ -96,8 +96,13 @@ def test_seed_academics_after_departments_keeps_one_department(departments):
 # --------------------------------------------------------------------------- #
 # API
 # --------------------------------------------------------------------------- #
-def test_department_list_requires_authentication(api, departments):
-    assert api.get("/api/departments/").status_code == 401
+def test_department_list_is_open_to_anonymous_visitors(api, departments):
+    # Students browse without signing in.
+    assert api.get("/api/departments/").status_code == 200
+
+
+def test_anonymous_cannot_modify_departments(api, departments):
+    assert api.post("/api/departments/", {"name": "Forged", "code": "FRG"}, format="json").status_code in (401, 403, 405)
 
 
 def test_student_can_list_departments(student_api, full_catalogue):

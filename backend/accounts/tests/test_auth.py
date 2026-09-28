@@ -113,82 +113,36 @@ def test_logout_blacklists_the_refresh_token(api, student_user):
     assert replay.status_code == 401
 
 
-REGISTER = "/api/auth/register/"
-GOOD = {"name": "New Student", "email": "new.student@rec.test", "password": "GoodPass!2026"}
+def test_self_registration_is_not_available(api, department):
+    """There is no public path to creating an account.
 
-
-@pytest.fixture(autouse=True)
-def _fresh_throttle_counters(settings):
-    """The register/login throttles are per-IP counters in the cache, and every
-    test client shares one IP — without this the suite would throttle itself.
-    The domain restriction is also lifted by default, so tests can use any
-    address; the restriction has its own test."""
-    from django.core.cache import cache
-
-    cache.clear()
-    settings.ALLOWED_STUDENT_EMAIL_DOMAIN = None
-
-
-def test_registration_creates_a_student_and_signs_them_in(api):
-    response = api.post(REGISTER, GOOD, format="json")
-    assert response.status_code == 201
-    body = response.json()
-    assert body["user"]["role"] == "STUDENT"
-    assert body["user"]["is_admin"] is False
-
-    # The tokens it hands back are real: they authenticate against /me/.
-    api.credentials(HTTP_AUTHORIZATION=f"Bearer {body['access']}")
-    assert api.get("/api/auth/me/").json()["email"] == "new.student@rec.test"
-
-
-def test_registration_can_never_create_an_administrator(api):
-    response = api.post(REGISTER, {**GOOD, "role": "ADMIN", "is_staff": True}, format="json")
-    assert response.status_code == 201
-
-    from accounts.models import Role, User
-
-    user = User.objects.get(email="new.student@rec.test")
-    assert user.role == Role.STUDENT
-    assert not user.is_staff and not user.is_superuser
-
-
-def test_registered_student_is_refused_by_the_admin_login(api):
-    api.post(REGISTER, GOOD, format="json")
+    Registration was removed: the portal runs on accounts provisioned on the
+    server. The endpoint must be gone rather than merely hidden in the UI, so a
+    direct POST cannot create a third account.
+    """
     response = api.post(
-        "/api/auth/admin/login/",
-        {"email": GOOD["email"], "password": GOOD["password"]},
+        "/api/auth/register/",
+        {"name": "New Student", "email": "new.student@rec.test", "password": "GoodPass!2026"},
         format="json",
     )
-    assert response.status_code == 400
-    assert "access" not in response.data
-
-
-def test_registration_rejects_a_duplicate_email_in_any_case(api, student_user):
-    response = api.post(REGISTER, {**GOOD, "email": student_user.email.upper()}, format="json")
-    assert response.status_code == 400
-    assert "email" in response.json() or "email" in str(response.json())
-
-
-def test_registration_rejects_a_weak_password(api):
-    response = api.post(REGISTER, {**GOOD, "password": "12345678"}, format="json")
-    assert response.status_code == 400
+    assert response.status_code == 404
 
     from accounts.models import User
 
-    assert not User.objects.filter(email=GOOD["email"]).exists()
+    assert not User.objects.filter(email="new.student@rec.test").exists()
 
 
-def test_registration_honours_the_email_domain_restriction(api, settings):
-    settings.ALLOWED_STUDENT_EMAIL_DOMAIN = "rec.test"
-    outside = api.post(REGISTER, {**GOOD, "email": "someone@gmail.com"}, format="json")
-    assert outside.status_code == 400
+def test_no_registration_route_is_wired(db):
+    from django.urls import NoReverseMatch, reverse
 
-    inside = api.post(REGISTER, GOOD, format="json")
-    assert inside.status_code == 201
+    import pytest as _pytest
+
+    with _pytest.raises(NoReverseMatch):
+        reverse("register")
 
 
-def test_accounts_can_still_be_provisioned_on_the_server(db, department):
-    """`create_user` is what registration and `createadmin` both build on."""
+def test_accounts_are_created_on_the_server_only(db, department):
+    """`create_user` still works — provisioning simply is not a public API."""
     from accounts.models import Role, User
 
     user = User.objects.create_user(

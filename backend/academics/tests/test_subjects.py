@@ -81,8 +81,9 @@ def test_tamil_titles_survive_the_round_trip(curriculum):
 # --------------------------------------------------------------------------- #
 # Reading
 # --------------------------------------------------------------------------- #
-def test_subject_list_requires_authentication(api, curriculum):
-    assert api.get("/api/subjects/").status_code == 401
+def test_subject_list_is_open_but_writes_need_faculty(api, curriculum):
+    assert api.get("/api/subjects/").status_code == 200
+    assert api.post("/api/subjects/", {"course_title": "Forged"}, format="json").status_code == 401
 
 
 def test_student_can_list_subjects(student_api, curriculum):

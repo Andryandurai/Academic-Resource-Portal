@@ -1,9 +1,10 @@
 # REC Academic Resource Portal
 
-Academic resource portal for **Rajalakshmi Engineering College**. Students pick
-a department, browse its curriculum semester by semester and open the unit notes
-and examination material published for each subject; administrators manage the
-subject catalogue and upload, replace and delete those resources.
+Academic resource portal for **Rajalakshmi Engineering College**. Students need
+no account: the site opens on the dashboard for their department, where they
+browse the curriculum semester by semester and open the unit notes and
+examination material published for each subject. Faculty sign in at `/faculty`
+to manage the subject catalogue and upload, replace and delete those resources.
 
 All nineteen departments are selectable. Fourteen have had their syllabus
 supplied — AI&DS, AI&ML, EEE, BME, Civil, CSE, ECE, CSD, ME, IT, Mechatronics,
@@ -32,7 +33,7 @@ eight populated semesters or any particular subject count: curricula are data
 | Auth | **SimpleJWT** access/refresh with refresh-token blacklisting |
 | Passwords | Django PBKDF2 (bcrypt kept only to read migrated hashes) |
 | Validation | DRF serializers + `core/validators.py` |
-| Files | Django `FileField` under `MEDIA_ROOT`, served by an authenticated endpoint |
+| Files | Django `FileField` under `MEDIA_ROOT`, served by a public read-only endpoint |
 | DB (dev) | SQLite |
 | DB (prod) | PostgreSQL via `REC_DATABASE_URL` |
 | Messaging | **WhatsApp Cloud API** (free service-conversation replies) + optional **Groq** free-tier LLM |
@@ -108,25 +109,26 @@ refresh works instead of 404ing. Set `REC_SECRET_KEY`, `REC_DEBUG=0`,
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /api/auth/login/` | Student/administrator sign-in → access + refresh + user |
-| `POST /api/auth/admin/login/` | Refuses to issue a token to a student account |
-| `POST /api/auth/register/` | Student self-registration (never creates an admin) |
+| `POST /api/auth/login/` | Sign-in → access + refresh + user |
+| `POST /api/auth/admin/login/` | Faculty sign-in; refuses to issue a token to a non-faculty account |
 | `POST /api/auth/token/refresh/` | New access token |
 | `GET /api/auth/me/` | Current user — re-reads the role from the database |
 | `POST /api/auth/logout/` | Blacklists the refresh token |
 | `GET /api/auth/users/` | Admin-only user overview |
-| `GET /api/stats/` | Dashboard counters, computed live |
+| `GET /api/stats/` | Dashboard counters, computed live (open) |
 | `GET /api/semesters/` | Semesters I–VIII with subject counts |
 | `GET /api/subjects/` | `?search=&semester=&semester_number=&course_type=&category=` |
-| `POST|PATCH|DELETE /api/subjects/…` | Administrator only |
+| `POST|PATCH|DELETE /api/subjects/…` | Faculty only |
 | `GET /api/subjects/:id/resource-counts/` | All eight categories, zeros included |
 | `GET /api/resources/` | `?subject=&semester=&resource_type=&search=&uploaded_from=&uploaded_to=` |
-| `POST|PATCH|DELETE /api/resources/…` | Administrator only |
-| `GET /api/resources/:id/download/` | Authenticated file stream; `?inline=1` previews a PDF |
+| `POST|PATCH|DELETE /api/resources/…` | Faculty only |
+| `GET /api/resources/:id/download/` | Public file stream; `?inline=1` previews a PDF |
 | `POST /api/whatsapp/webhook/` | Meta Cloud API delivery — see [backend/whatsapp/README.md](backend/whatsapp/README.md) |
 
-Every write verb returns **403** for a student regardless of what the client
-sends. Deleting a subject that still holds resources returns **409**.
+Every read endpoint is open to anonymous visitors. Every write verb returns
+**401** without a faculty token (and **403** for any non-faculty account),
+regardless of what the client sends. Faculty accounts are created on the server
+with `python manage.py createadmin`; there is no self-registration. Deleting a subject that still holds resources returns **409**.
 
 ---
 
@@ -172,8 +174,8 @@ Department ─┬─< Semester ──< Subject ──< Resource
   and size before anything reaches disk. Stored names are server-generated
   UUIDs, so the uploader's filename never becomes a path.
 - `MEDIA_ROOT` is outside `frontend/` and `STATIC_ROOT` and is not served
-  statically; the download endpoint requires a valid token and sends
-  `nosniff` + a restrictive CSP.
+  statically; the download endpoint is public (students have no accounts) and
+  sends `nosniff` + a restrictive CSP. Do not upload anything confidential.
 - Login is throttled; unknown accounts and wrong passwords return identical
   responses so registered addresses cannot be enumerated.
 - Logout blacklists the refresh token.

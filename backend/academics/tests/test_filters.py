@@ -314,8 +314,8 @@ def test_search_returns_no_duplicate_rows(student_api, catalogue):
 # --------------------------------------------------------------------------- #
 # Facets
 # --------------------------------------------------------------------------- #
-def test_facets_require_authentication(api, catalogue):
-    assert api.get(FACETS_URL).status_code == 401
+def test_facets_are_open_to_anonymous_visitors(api, catalogue):
+    assert api.get(FACETS_URL).status_code == 200
 
 
 def test_facets_describe_the_whole_catalogue(student_api, catalogue):
@@ -433,9 +433,11 @@ def test_filtering_does_not_grant_write_access(student_api, catalogue):
     assert student_api.post(SUBJECTS_URL, {"course_title": "Forged"}).status_code == 403
 
 
-def test_anonymous_cannot_filter_the_catalogue(api, catalogue):
-    assert api.get(SUBJECTS_URL).status_code == 401
-    assert api.get(SUBJECTS_URL, {"department": catalogue["CSE"].id}).status_code == 401
+def test_anonymous_can_filter_the_catalogue(api, catalogue):
+    assert api.get(SUBJECTS_URL).status_code == 200
+    filtered = api.get(SUBJECTS_URL, {"department": catalogue["CSE"].id})
+    assert filtered.status_code == 200
+    assert {row["department_code"] for row in filtered.data["results"]} == {"CSE"}
 
 
 def test_admin_sees_the_same_filtered_catalogue(admin_api, student_api, catalogue):

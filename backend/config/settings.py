@@ -294,11 +294,8 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_BYTES + (1024 * 1024)
 
 # Optional domain restriction for student self-registration.
-# Defaults to the college's own domain: registration is public, so leaving this
-# unset must not mean "anyone on the internet". Set it to an empty string to
-# allow any address.
 ALLOWED_STUDENT_EMAIL_DOMAIN = (
-    os.environ.get("REC_ALLOWED_STUDENT_EMAIL_DOMAIN", "rajalakshmi.edu.in").strip().lstrip("@").lower() or None
+    os.environ.get("REC_ALLOWED_STUDENT_EMAIL_DOMAIN", "").strip().lstrip("@").lower() or None
 )
 
 # --------------------------------------------------------------------------- #

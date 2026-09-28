@@ -218,13 +218,18 @@ def test_student_cannot_edit_replace_or_delete(admin_api, student_api, data_stru
     assert resource.title == "Unit 1 Notes"
 
 
-def test_anonymous_access_is_refused_everywhere(api, admin_api, data_structures):
+def test_anonymous_can_read_but_never_write(api, admin_api, data_structures):
     resource_id = create_resource(admin_api, data_structures).data["id"]
-    # `api` carries no Authorization header â€” it is a separate, unauthenticated
+    # `api` carries no Authorization header: it is a separate, unauthenticated
     # client rather than a de-authenticated copy of the admin one.
-    assert api.get("/api/resources/").status_code == 401
-    assert api.get(f"/api/resources/{resource_id}/").status_code == 401
-    assert api.get(f"/api/resources/{resource_id}/download/").status_code == 401
+    assert api.get("/api/resources/").status_code == 200
+    assert api.get(f"/api/resources/{resource_id}/").status_code == 200
+    assert api.get(f"/api/resources/{resource_id}/download/").status_code == 200
+
+    # Publishing, editing and deleting stay faculty-only.
+    assert api.post("/api/resources/", {"title": "Forged"}, format="multipart").status_code == 401
+    assert api.patch(f"/api/resources/{resource_id}/", {"title": "x"}, format="multipart").status_code == 401
+    assert api.delete(f"/api/resources/{resource_id}/").status_code == 401
 
 
 # --------------------------------------------------------------------------- #

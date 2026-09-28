@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from django.conf import settings
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Role, User
+from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -66,50 +63,6 @@ class AdminLoginSerializer(LoginSerializer):
                 {"detail": self.error_messages["no_active_account"]}, code="no_active_account"
             )
         return data
-
-
-class RegisterSerializer(serializers.Serializer):
-    """Student self-registration.
-
-    Only `name`, `email` and `password` are read: a `role` (or anything else) in
-    the request body is ignored, so this endpoint can only ever create a
-    student. When REC_ALLOWED_STUDENT_EMAIL_DOMAIN is set, the address must
-    belong to that domain — the portal's only gate on who may register.
-    """
-
-    name = serializers.CharField(max_length=150)
-    email = serializers.EmailField(max_length=254)
-    password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
-
-    def validate_name(self, value: str) -> str:
-        value = " ".join(value.split())
-        if len(value) < 2:
-            raise serializers.ValidationError("Enter your full name.")
-        return value
-
-    def validate_email(self, value: str) -> str:
-        value = value.strip().lower()
-        domain = settings.ALLOWED_STUDENT_EMAIL_DOMAIN
-        if domain and value.rpartition("@")[2] != domain:
-            raise serializers.ValidationError(f"Use your @{domain} email address to register.")
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
-        return value
-
-    def validate(self, attrs):
-        try:
-            validate_password(attrs["password"], user=User(email=attrs["email"], name=attrs["name"]))
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError({"password": list(exc.messages)}) from exc
-        return attrs
-
-    def create(self, validated_data):
-        return User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            name=validated_data["name"],
-            role=Role.STUDENT,
-        )
 
 
 class UserListSerializer(serializers.ModelSerializer):

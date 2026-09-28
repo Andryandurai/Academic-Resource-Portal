@@ -10,7 +10,7 @@ import django_filters as filters
 from django.db.models import BooleanField, Case, Count, Q, Value, When
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -61,7 +61,7 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     pagination_class = None
     filterset_class = DepartmentFilter
 
@@ -91,7 +91,7 @@ class SemesterViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     serializer_class = SemesterSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     pagination_class = None
     filterset_fields = ["department"]
 
@@ -293,7 +293,7 @@ class CatalogueStatsView(APIView):
     portal with no uploads reports zero rather than a decorative number.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         from resources.models import EXAM_RESOURCE_TYPES, Resource
@@ -327,7 +327,9 @@ class CatalogueStatsView(APIView):
             ).count(),
         }
 
-        if request.user.is_admin:
+        user = request.user
+        # Anonymous visitors (students) get the catalogue counters only.
+        if user and user.is_authenticated and user.is_admin:
             from django.utils import timezone
 
             from accounts.models import Role, User

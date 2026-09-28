@@ -499,3 +499,96 @@
 .actions { display: flex; gap: var(--s1); justify-content: flex-end; }
 .nowrap { white-space: nowrap; }
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   Layout corrections
+   Loaded last on purpose: these repair spacing and alignment defects in the
+   rules above without rewriting them.
+   ========================================================================== */
+
+/* `stack-N` was only ever a variable: the rule that consumed it required the
+   bare `.stack` class, which nothing used, so forms and sections rendered with
+   no vertical space at all. Any element carrying a `stack-N` class now spaces
+   its children by that step. Explicit sizes, not the variable: a child row's own
+   `--gap` would otherwise override its parent's. Grids and rows already consume the variable as
+   their own gap, so they are left alone. */
+.stack-1:not(.grid):not(.row) > * + * { margin-top: var(--s1); }
+.stack-2:not(.grid):not(.row) > * + * { margin-top: var(--s2); }
+.stack-3:not(.grid):not(.row) > * + * { margin-top: var(--s3); }
+.stack-4:not(.grid):not(.row) > * + * { margin-top: var(--s4); }
+.stack-5:not(.grid):not(.row) > * + * { margin-top: var(--s5); }
+.stack-6:not(.grid):not(.row) > * + * { margin-top: var(--s6); }
+.stack-8:not(.grid):not(.row) > * + * { margin-top: var(--s8); }
+/* A section heading already carries its own bottom margin. */
+[class*="stack-"]:not(.grid):not(.row) > .sectionhead + * { margin-top: 0; }
+
+/* Vertical rhythm between the blocks of a page. The breadcrumb and page head
+   set their own bottom margin, so only what follows a content block is spaced. */
+.adminmain > :not(.crumbs):not(.pagehead) + *,
+.appmain > :not(.crumbs):not(.pagehead) + * { margin-top: var(--s6); }
+
+/* A heading with an action button beside it: centre them on one line rather
+   than hanging the button off the underline. */
+.sectionhead { align-items: center; }
+.sectionhead .btn { flex-shrink: 0; }
+
+/* Stat tiles: icon and figure share a centre line in every tile, so a tile
+   with an extra note line no longer shifts its number up. */
+.stat { align-items: center; }
+
+/* A <td class="actions"> was made display:flex, which removes it from the
+   table's row layout — its border and height then disagreed with the other
+   cells in the same row. */
+td.actions, th.actions { display: table-cell; text-align: right; white-space: nowrap; }
+td.actions > * { vertical-align: middle; }
+td.actions > * + * { margin-left: var(--s1); }
+
+/* The search field is a wrapper only: the input is the visible box, with the
+   icon inside it. Previously the wrapper drew a second box around the input
+   and the icon sat on that outer border. */
+.panel.searchfield {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: var(--s4);
+}
+.searchfield .searchfield__icon { left: 12px; }
+.searchfield input { padding-left: 38px; }
+
+/* Toasts sit bottom-right on wide screens so they never cover the sidebar's
+   signed-in name; full width along the bottom on a phone. */
+.toast-stack {
+  inset: auto var(--s4) var(--s4) auto;
+  width: min(24rem, calc(100vw - 2 * var(--s4)));
+  padding: 0;
+  align-items: stretch;
+}
+@media (max-width: 719px) {
+  .toast-stack { inset: auto var(--s4) var(--s4) var(--s4); width: auto; }
+}
+
+/* Visually-hidden labels (.sr-only) inside a table cell are absolutely
+   positioned. With no positioned ancestor they escape the scroll container's
+   clipping and widen the whole page, so a wide table made the page itself
+   scroll sideways on a phone. Making the container their containing block keeps
+   them inside it. */
+.scroll-x { position: relative; }
+
+/* A card that is itself a link should not underline every line of its text. */
+a.subjectcard, a.subjectcard:hover { text-decoration: none; }
+
+/* A bare link sitting in a stack is inline, so the stack's top margin never
+   applied to it and it touched the button above. Centre it as its own line. */
+.authcard .stack-4 > a { display: block; text-align: center; }
+
+/* A card title and its meta line: leave room between them, and centre the
+   badge on the text baseline instead of overlapping the heading. */
+.panel h3 + .meta,
+.panel h3 + .muted + .meta { margin-top: var(--s2); }
+.panel .meta .chip { vertical-align: middle; margin-right: var(--s1); }
+
+/* The text block of a section heading takes the free width, so a long subject
+   title wraps at the card edge rather than at a narrow shrink-to-fit column. */
+.sectionhead > :first-child { flex: 1 1 14rem; min-width: 0; }
+.sectionhead > :first-child p { max-width: none; }

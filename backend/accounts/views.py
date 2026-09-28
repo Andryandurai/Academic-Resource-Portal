@@ -18,7 +18,6 @@ from .models import Role, User
 from .serializers import (
     AdminLoginSerializer,
     LoginSerializer,
-    RegisterSerializer,
     UserListSerializer,
     UserSerializer,
 )
@@ -43,35 +42,6 @@ class AdminLoginView(LoginView):
     """POST /api/auth/admin/login/ — refuses to issue a token to a student."""
 
     serializer_class = AdminLoginSerializer
-
-
-class RegisterRateThrottle(AnonRateThrottle):
-    """Registration is public, so it is throttled harder than sign-in."""
-
-    scope = "register"
-    rate = "20/hour"
-
-
-class RegisterView(generics.GenericAPIView):
-    """POST /api/auth/register/ — creates a student and signs them in."""
-
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-    throttle_classes = [RegisterRateThrottle]
-
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserSerializer(user).data,
-            },
-            status=status.HTTP_201_CREATED,
-        )
 
 
 class RefreshView(TokenRefreshView):
