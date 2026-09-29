@@ -7,17 +7,32 @@ import { useSession } from "../../stores/session";
 import { useUi } from "../../stores/ui";
 
 /**
- * The two accounts this deployment ships with.
+ * The two accounts this deployment ships with — shown only when this is
+ * meant to be a demonstration deployment, never unconditionally.
  *
- * Listed in the UI on purpose: this is a demonstration portal, and the point is
- * that a reviewer can sign in without being handed credentials out of band.
- * That also means these credentials are public — they are in the JavaScript
- * bundle — so neither account should ever hold anything private.
+ * Listed in the UI on purpose *for a demo*: the point is that a reviewer can
+ * sign in without being handed credentials out of band. That also means
+ * these credentials are public wherever they're shown — they end up in the
+ * JavaScript bundle — so neither account should ever hold anything private,
+ * and a real production deployment (one with actual student/faculty data)
+ * must not ship this panel at all.
+ *
+ * On by default in local development (`npm run dev`), and in any build that
+ * explicitly opts in with `VITE_SHOW_DEMO_ACCOUNTS=true` (e.g. a deployed
+ * grading/demo instance) — off otherwise. The `false` branch below is a
+ * statically-known constant once Vite inlines `import.meta.env.*` at build
+ * time, so a production build with neither condition set has the ternary's
+ * `true` branch (and these two credential strings) eliminated by the
+ * minifier, not merely hidden at runtime — verified by grepping the built
+ * bundle for both passwords after `npm run build`.
  */
-const DEMO_ACCOUNTS = [
-  { role: "Student", email: "student@rec.local", password: "andyandy1234", admin: false },
-  { role: "Administrator", email: "admin@rec.local", password: "trial1234", admin: true },
-] as const;
+const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+const DEMO_ACCOUNTS = SHOW_DEMO_ACCOUNTS
+  ? ([
+      { role: "Student", email: "student@rec.local", password: "andyandy1234", admin: false },
+      { role: "Administrator", email: "admin@rec.local", password: "trial1234", admin: true },
+    ] as const)
+  : ([] as const);
 
 /**
  * Student and administrator sign-in.
@@ -115,37 +130,41 @@ export function Login({ admin = false }: { admin?: boolean }) {
             </button>
           </form>
 
-          {/* Only the accounts that this form will actually accept: the admin
+          {/* Only rendered on a demo deployment (see SHOW_DEMO_ACCOUNTS above)
+              — absent entirely from a real production build. Only the
+              accounts that this form will actually accept: the admin
               endpoint refuses a student outright, so offering one there would
               be a button that always fails. */}
-          <div className="demoaccounts">
-            <p className="demoaccounts__title">Demonstration accounts</p>
-            {DEMO_ACCOUNTS.filter((account) => !admin || account.admin).map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                className="demoaccount"
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
-                  setError(null);
-                }}
-              >
-                <span className="demoaccount__role">{account.role}</span>
-                <span className="demoaccount__creds">
-                  <span>{account.email}</span>
-                  <span className="demoaccount__pw">{account.password}</span>
-                </span>
-                <span className="demoaccount__action" aria-hidden="true">
-                  Use
-                </span>
-              </button>
-            ))}
-            <p className="meta demoaccounts__hint">
-              Click an account to fill the form, then press
-              {admin ? " Admin Login" : " Login"}.
-            </p>
-          </div>
+          {SHOW_DEMO_ACCOUNTS ? (
+            <div className="demoaccounts">
+              <p className="demoaccounts__title">Demonstration accounts</p>
+              {DEMO_ACCOUNTS.filter((account) => !admin || account.admin).map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  className="demoaccount"
+                  onClick={() => {
+                    setEmail(account.email);
+                    setPassword(account.password);
+                    setError(null);
+                  }}
+                >
+                  <span className="demoaccount__role">{account.role}</span>
+                  <span className="demoaccount__creds">
+                    <span>{account.email}</span>
+                    <span className="demoaccount__pw">{account.password}</span>
+                  </span>
+                  <span className="demoaccount__action" aria-hidden="true">
+                    Use
+                  </span>
+                </button>
+              ))}
+              <p className="meta demoaccounts__hint">
+                Click an account to fill the form, then press
+                {admin ? " Admin Login" : " Login"}.
+              </p>
+            </div>
+          ) : null}
 
           {/* Self-registration is deliberately absent: accounts are
               provisioned on the server, so there is no public path to creating

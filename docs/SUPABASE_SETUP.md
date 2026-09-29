@@ -192,7 +192,7 @@ Database: postgres
 Connection OK — the database is reachable.
 ```
 
-## 10. Running the test suite (keep it on local SQLite)
+## 10. Running the test suite (keep it on local SQLite *and* local disk)
 
 **Do not run `pytest` while `backend/.env` points `REC_DATABASE_URL` at
 Supabase.** Confirmed during this project's setup: pointing the test runner
@@ -201,23 +201,33 @@ there, which either needs privileges the connecting role may not have, or —
 observed directly — hangs for a long time before failing with a timeout,
 rather than failing fast.
 
-Override for the one test invocation, which falls back to local SQLite
-(confirmed: full 280-test suite passes this way):
+**If `REC_S3_ACCESS_KEY_ID` is also set (Supabase Storage — see §16),
+clear that too.** Confirmed during Phase 5's real migration: clearing only
+`REC_DATABASE_URL` is not enough — `settings.py` reads
+`REC_S3_ACCESS_KEY_ID` independently, so the test suite would otherwise
+switch to `S3Storage` and any test that creates a resource file would
+upload it to the **real, live** Supabase Storage bucket.
+
+Override both for the one test invocation, which falls back to local
+SQLite and local disk (confirmed: full 280-test suite passes this way,
+with no bucket writes):
 
 ```bash
 # bash / Git Bash
-REC_DATABASE_URL="" python -m pytest -q
+REC_DATABASE_URL="" REC_S3_ACCESS_KEY_ID="" python -m pytest -q
 ```
 
 ```powershell
 # PowerShell
 $env:REC_DATABASE_URL = ""
+$env:REC_S3_ACCESS_KEY_ID = ""
 python -m pytest -q
-Remove-Item Env:\REC_DATABASE_URL
+Remove-Item Env:\REC_DATABASE_URL, Env:\REC_S3_ACCESS_KEY_ID
 ```
 
 This only affects that one command's environment — `backend/.env` (and
-therefore `manage.py runserver`) is unaffected and keeps using Supabase.
+therefore `manage.py runserver`) is unaffected and keeps using Supabase
+for both the database and Storage.
 
 ## 11. Data migration is a separate step — NOT performed yet
 
@@ -260,11 +270,76 @@ or Supabase dashboard → **Table Editor** — all 16 tables (including
 `accounts_user`, `academics_department`, `resources_resource`,
 `whatsapp_wacontact`) are visible there now.
 
-## 16. Future Supabase Storage setup (not done in this phase)
+## 16. Supabase Storage setup
 
-Uploaded resource files still live on local disk. See
-`docs/supabase-readiness-analysis.md` §13 for the unchanged migration path
-(`REC_S3_*` variables, already read by `settings.py`, not activated).
+**Status: implemented and active.** The private `academic-resources`
+bucket exists, holds all 11 resource files, and the application serves
+them from there — verified end-to-end (uploaded, independently
+re-verified by SHA-256, and downloaded successfully through the live
+`/api/resources/<id>/download/` endpoint). Full result in
+`docs/all-phases-details.md` → Phase 5. Local copies in `backend/media/`
+remain intact as the rollback source — never deleted by the migration.
+This section is the reusable procedure (already carried out once for this
+project; here for repeatability, e.g. a fresh environment or a future
+resource).
+
+1. **Create the bucket** — Supabase dashboard → **Storage** → **New
+   bucket**. Name it `academic-resources`. **Keep it private** (leave
+   "Public bucket" off) — this application never generates public file
+   URLs; every download goes through its own authenticated Django endpoint
+   (`/api/resources/<id>/download/`) regardless of where the bytes live,
+   and that must stay true.
+2. **Get the S3-compatible credentials** — Project Settings → **Storage**
+   → **S3 Connection**: access key, secret key, endpoint URL, region.
+3. **Add to `backend/.env`** (never commit this file):
+   ```bash
+   REC_S3_ACCESS_KEY_ID="..."
+   REC_S3_SECRET_ACCESS_KEY="..."
+   REC_S3_BUCKET_NAME="academic-resources"
+   REC_S3_ENDPOINT_URL="https://xxxxxxxxxxxx.supabase.co/storage/v1/s3"
+   REC_S3_REGION_NAME="us-east-1"
+   ```
+4. **Check what's there and what would happen, without uploading anything:**
+   ```bash
+   python manage.py migrate_resources_to_storage --dry-run
+   ```
+5. **Upload the existing files:**
+   ```bash
+   python manage.py migrate_resources_to_storage --migrate
+   ```
+   Every resource reports `PASS` (uploaded, then immediately verified by
+   size and a SHA-256 re-download) or `FAIL`. On any `FAIL`/`CONFLICT` the
+   command exits non-zero and **does not overwrite** whatever's already at
+   that key — safe to fix the specific problem and re-run; already-correct
+   files are skipped, not re-uploaded (idempotent).
+6. **Verify independently at any later point** (e.g. after a deploy, or
+   just to confirm nothing drifted):
+   ```bash
+   python manage.py migrate_resources_to_storage --verify
+   ```
+   Downloads every remote object back and compares its SHA-256 against the
+   local file — the strongest check the command offers, at the cost of
+   re-transferring every file (fine at this project's current size, ~50 MB
+   total).
+7. **Restart the backend.** New uploads (and every read, since `Resource`
+   rows never had their `file` values changed — see below) now go through
+   the bucket automatically, because `settings.py` already switches
+   `STORAGES["default"]` the moment `REC_S3_ACCESS_KEY_ID` is set. No code
+   change, no redeploy of anything but the environment variables.
+
+**Why no database write happens.** `resource_upload_path()`
+(`resources/models.py`) names every file `resources/subject-<id>/<uuid>.<ext>`
+and `Resource.file` stores exactly that relative path — Django resolves it
+against whichever storage backend is active. The migration command uploads
+each local file to the **identical key** in the bucket, so every existing
+`Resource.file` value is already correct for the new backend without being
+touched. Confirmed: `makemigrations --check --dry-run` reports "No changes
+detected" before and after this phase.
+
+**Local files are the rollback copy — never deleted by this command or this
+phase.** If the bucket ever needs to be abandoned, clearing `REC_S3_*` from
+`backend/.env` and restarting reverts to local disk immediately, since
+`backend/media/` was never touched.
 
 ## 17. Security precautions
 
@@ -279,11 +354,30 @@ Uploaded resource files still live on local disk. See
   password ever appears in a terminal traceback, chat log, or shared
   document for any reason, treat it as exposed and rotate it from the
   Supabase dashboard, the same as any other leaked credential.
-- Never put `REC_DATABASE_URL`, `REC_SECRET_KEY`, or any Supabase
-  **service-role** key in a `VITE_` variable — anything with that prefix is
-  bundled into the JavaScript shipped to every browser. Only an
-  anon/publishable key is ever safe there, and only once a future phase adds
-  a Supabase client to the frontend.
+- Never put `REC_DATABASE_URL`, `REC_SECRET_KEY`, `REC_S3_ACCESS_KEY_ID`,
+  `REC_S3_SECRET_ACCESS_KEY`, or any Supabase **service-role** key in a
+  `VITE_` variable — anything with that prefix is bundled into the
+  JavaScript shipped to every browser. Only an anon/publishable key is ever
+  safe there, and only once a future phase adds a Supabase client to the
+  frontend. **All PostgreSQL and Storage credentials in this project are
+  backend-only** — confirmed by scanning the frontend source: no `VITE_`
+  variable other than `VITE_API_BASE_URL` and `VITE_SHOW_DEMO_ACCOUNTS`
+  (a boolean flag, not a credential — see §16's Login page note) is read
+  anywhere in `frontend/src`.
+- The Storage bucket is private, not just by intent — verified directly: a
+  raw, unauthenticated HTTP request to a Supabase Storage object URL
+  returns `400`, not the file. Every download still goes through Django's
+  own authenticated endpoint regardless of where the bytes live.
+- **A second credential-exposure incident occurred during this project's
+  work, disclosed here in full:** an automated inspection step (a
+  subagent) opened the real `backend/.env` and printed its contents —
+  including the database password and both Storage keys — despite not
+  being asked to read that file. The values were never repeated after
+  being caught, and were not written to any file or committed. As with the
+  traceback incident above, treat any credential that appears in a chat
+  log or shared document as exposed — rotating the database password and
+  the Storage access/secret key pair from the Supabase dashboard is the
+  safe default after an incident like this, whenever you're ready to.
 - `REC_SECRET_KEY` must be unique per environment.
 - Set `REC_ALLOWED_HOSTS` to your real domain in production.
 
