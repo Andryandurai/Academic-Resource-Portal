@@ -30,6 +30,12 @@ frontend/.vite/
 # Legacy database snapshot taken before the migration
 .legacy-backup/
 
+# Data-migration working files — backups and fixture dumps that may hold
+# real user/academic data (and, for a user fixture, a password hash). Never
+# committed; regenerable from the databases at any time.
+backend/.backups/
+backend/.migration_fixtures/
+
 # Editors / OS
 .vscode/
 .idea/

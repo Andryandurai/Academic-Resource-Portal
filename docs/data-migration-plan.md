@@ -7,6 +7,27 @@ Django ORM `.count()` calls only — no writes).
 
 ---
 
+## Execution status: this plan has been carried out (Phase 4)
+
+Everything below this line describes the plan as it stood before execution
+— kept intact as the record of the analysis. **The migration itself was
+performed in Phase 4** and succeeded exactly as planned, with one addition
+the plan below didn't anticipate: the user-migration decision came back as
+**"keep all three users"** (the pre-existing Supabase admin, plus both local
+accounts migrated as new, separate records — not a replacement or merge),
+which required assigning the two migrated users fresh, non-colliding
+primary keys and remapping `Resource.uploaded_by` accordingly, rather than
+preserving local user PKs the way the academic tables' PKs were preserved.
+
+Full results, verification, and the security incident encountered along the
+way: `docs/all-phases-details.md` → **Phase 4 — Academic Data + User
+Migration**.
+
+Final state: 19 departments, 152 semesters, 910 subjects, 11 resources, 3
+users — all on Supabase, all verified. Local SQLite untouched throughout.
+
+---
+
 ## Current Local Database
 
 | | |
