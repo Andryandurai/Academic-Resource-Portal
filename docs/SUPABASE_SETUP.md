@@ -5,6 +5,13 @@ project. It assumes the codebase is already at the state described in
 `docs/supabase-readiness-analysis.md` — the database layer already supports
 this with no code change; this document is configuration only.
 
+**Current status: this project is connected to Supabase PostgreSQL and the
+full schema has been migrated.** See `docs/all-phases-details.md` → Phase 2
+for the complete results. The rest of this document is the reusable
+procedure, written against this project's real (non-secret) connection
+details — the password is never in this document, in `.env.example`, or in
+any file Claude writes.
+
 Two setups are described throughout. Use whichever matches what you're doing
 right now:
 
@@ -21,66 +28,70 @@ variables change.
 ## 1. Create a Supabase project
 
 1. Go to <https://supabase.com>, sign in, and click **New project**.
-2. Choose an organisation, a project name (e.g. `rec-academic`), a database
-   password (generate a strong one — **save it now**, it's shown only once),
-   and a region close to where the app will run.
+2. Choose an organisation, a project name, a database password (generate a
+   strong one — **save it now**, it's shown only once), and a region close
+   to where the app will run.
 3. Wait for provisioning to finish (a couple of minutes).
 
-## 2. Find the Supabase database connection information
+(This project already has a Supabase project — see §2.)
 
-1. In the project dashboard: **Project Settings** (gear icon) → **Database**.
-2. Under **Connection string**, pick the **URI** tab. You'll see two options:
-   - **Session / direct connection** (port `5432`) — a normal Postgres
-     connection. Use this for `manage.py migrate`, `createadmin`, and
-     anything that needs a long-lived or full-featured connection.
-   - **Transaction pooler** (port `6543`, PgBouncer) — better for a
-     production web server with several workers, since it multiplexes many
-     short connections. Use this for the *running app*, not for migrations
-     or `pytest`.
-3. Copy the URI. It looks like:
-   ```
-   postgresql://postgres.xxxxxxxxxxxxxxxxxxxx:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:6543/postgres
-   ```
+## 2. This project's Supabase database connection information
+
+From the Supabase dashboard: **Project Settings** (gear icon) → **Database**
+→ **Connection string**.
+
+| | Direct connection | Session Pooler *(currently in use)* |
+| --- | --- | --- |
+| Host | `db.kuzjdhvyvsgiweayrarg.supabase.co` | *(get from dashboard — region-specific)* |
+| Port | `5432` | `5432` |
+| Database | `postgres` | `postgres` |
+| User | `postgres` | `postgres.kuzjdhvyvsgiweayrarg` (project ref appended) |
+| Password | *(yours)* | *(yours)* |
+
+**This deployment uses the Session Pooler, not the direct connection.** The
+direct connection (`db.<ref>.supabase.co:5432`) was tried first and its TCP
+port was reachable once, but became consistently unreachable shortly after
+— see §6 for the full finding. The Session Pooler resolved it and is what
+`backend/.env` is configured with now.
 
 ## 3. Obtain the PostgreSQL connection string
 
-Take the URI from step 2, substitute your real database password for
-`[YOUR-PASSWORD]`, and append `?sslmode=require` (Supabase requires TLS):
+The full form, with your real password substituted in and `sslmode=require`
+appended (Supabase requires TLS):
 
 ```
-postgresql://postgres.xxxxxxxxxxxxxxxxxxxx:your-real-password@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require
+postgresql://postgres.kuzjdhvyvsgiweayrarg:your-real-password@<pooler-host-from-dashboard>:5432/postgres?sslmode=require
 ```
 
-If the password contains `@`, `/`, `:`, or other URL-special characters,
-percent-encode it (the app decodes it back — see
-`backend/config/settings.py`).
-
-## 4. Configure `DATABASE_URL`
-
-Create `backend/.env` (copy from the repo's `.env.example` — never commit
-this file) and set:
+**If the password contains any of `: / ? # [ ] @ ! $ & ' ( ) * + , ; = %`,
+percent-encode it before putting it in the URL.** This was a real issue
+during this project's setup — an unencoded `#` in the password silently
+truncated the entire rest of the connection string (a URL fragment
+delimiter), which surfaced as a confusing "port could not be parsed" error
+with no indication the password was the cause. Encode it yourself:
 
 ```bash
-REC_SECRET_KEY="<generate one — see step below>"
-REC_DEBUG="0"
-REC_ALLOWED_HOSTS="your-domain.example.com"
-
-REC_DATABASE_URL="postgresql://postgres.xxxxxxxxxxxxxxxxxxxx:your-real-password@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require"
+python -c "from urllib.parse import quote; print(quote('your-password', safe=''))"
 ```
 
-Generate `REC_SECRET_KEY`:
+## 4. Configure `REC_DATABASE_URL`
+
+`backend/.env` (gitignored, never committed) holds:
 
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(64))"
+REC_DEBUG="1"
+REC_DATABASE_URL="postgresql://postgres.kuzjdhvyvsgiweayrarg:<percent-encoded-password>@<pooler-host>:5432/postgres?sslmode=require"
 ```
 
-`REC_DATABASE_URL` takes priority over a bare `DATABASE_URL`, so set whichever
-name your hosting platform expects — both are read.
+Enter your own percent-encoded password directly into that file — Claude
+does not have it and will not ask for it.
 
-**LOCAL DEVELOPMENT alternative:** leave `REC_DATABASE_URL` unset (or the
-whole `.env` file absent) to keep using the local SQLite file — nothing else
-needs to change to develop locally while a separate Supabase project exists
-for staging/production.
+`REC_DATABASE_URL` takes priority over a bare `DATABASE_URL`, so either name
+works if your hosting platform injects the plain one instead — both are
+read.
+
+**LOCAL DEVELOPMENT alternative:** delete `backend/.env` (or clear
+`REC_DATABASE_URL` in it) to fall back to the local SQLite file.
 
 ## 5. Install required dependencies
 
@@ -93,46 +104,78 @@ venv\Scripts\activate            # Windows; source venv/bin/activate on Unix
 pip install -r requirements.txt
 ```
 
-If you already have a venv from before this phase, just re-run
-`pip install -r requirements.txt` — it will pick up nothing new for the
-database layer (only `python-dotenv`, `boto3`, `django-storages` if those
-weren't already installed, which are needed for the optional storage step,
-not for the database connection itself).
+## 6. IPv4 / IPv6 consideration, and why this project uses the pooler
 
-## 6. Run migrations
+Supabase's **direct connection** resolves to an **IPv6 address only** — no
+IPv4 (`A`) record — unless the paid IPv4 add-on is enabled, which this
+project does **not** use.
 
-With `REC_DATABASE_URL` set to your Supabase connection string:
+What was actually observed while setting this project up:
+
+1. The direct connection's IPv6 address **was** reachable at the TCP level
+   on the first test (general IPv6 connectivity from the dev machine was
+   confirmed working throughout, including against an unrelated host).
+2. After a burst of connection attempts with an incorrect password (testing
+   the setup before the real password was entered), the direct connection
+   became **consistently unreachable** at the TCP level — not an
+   authentication failure, a network-level failure, across multiple retries
+   spaced minutes apart.
+3. Switching to the **Session Pooler** (a different host, a PgBouncer layer
+   in front of Postgres) connected immediately and has worked reliably
+   since.
+
+The most likely explanation is Supabase-side throttling of the direct
+connection endpoint after repeated failed authentication attempts from the
+same source — not a real IPv4/IPv6 gap, since general IPv6 worked
+throughout and DNS resolution never failed. This wasn't confirmed against
+Supabase's own status/logs, so it's reported as the most likely explanation
+rather than a certainty.
+
+**No Supabase project setting, billing plan, or the IPv4 add-on was changed**
+to work around this — the pooler was already available as a normal
+connection option, and switching to it required only an environment
+variable change on this side.
+
+If you hit the same direct-connection issue on a fresh setup: try the
+Session Pooler first, or wait a few minutes and retry the direct connection
+before concluding it's IPv4/IPv6-related.
+
+## 7. Run migrations
+
+With `REC_DATABASE_URL` set to your real connection string (§4):
 
 ```bash
 cd backend
+python manage.py check
 python manage.py migrate
+python manage.py showmigrations
 ```
 
 This creates every table (`accounts`, `academics`, `resources`, `whatsapp`,
 `auth`, `contenttypes`, `token_blacklist`) in the Supabase database. Safe to
-re-run — Django migrations are idempotent.
+re-run — Django migrations are idempotent. **Already done for this
+project** — see Phase 2 in `docs/all-phases-details.md` for the full
+migration list and table verification.
 
-**Do not** run `flush`, `migrate <app> zero`, or drop the database — none of
-that is part of this procedure and none of it was run against your existing
-data by this phase.
+**Do not** run `flush`, `migrate <app> zero`, or drop the database.
 
-## 7. Create an admin/superuser
+## 8. Create an admin/superuser
 
 ```bash
 python manage.py createadmin --email admin@yourcollege.edu --name "Your Name"
 ```
 
-(Or `python manage.py createsuperuser` for Django's own prompt-based flow —
-both work; `createadmin` is this project's own convenience command.)
-
-Optionally seed the catalogue data:
+(Or `python manage.py createsuperuser`.) Optionally seed catalogue data:
 
 ```bash
 python manage.py seed_departments
 python manage.py seed_academics
 ```
 
-## 8. Test the backend
+**Not yet done for this project** — the Supabase database currently has the
+schema only (empty tables). See §11.
+
+## 9. Test the backend
 
 ```bash
 python manage.py check
@@ -140,9 +183,8 @@ python manage.py check_db
 python manage.py runserver
 ```
 
-`check_db` (added by this phase) confirms the configured database is
-reachable without printing your credentials — it reports only the engine
-(`postgresql`) and database name (`postgres`). Expect:
+`check_db` reports only the engine and database name, never credentials.
+Confirmed working against this project's Supabase database:
 
 ```
 Engine:   postgresql
@@ -150,139 +192,110 @@ Database: postgres
 Connection OK — the database is reachable.
 ```
 
-Then hit `http://127.0.0.1:8000/api/health/` — should return
-`{"status": "ok", ...}`.
+## 10. Running the test suite (keep it on local SQLite)
 
-**Do not run `pytest` against the Supabase connection.** The test suite
-creates and drops a throwaway test database on every run, which needs
-`CREATEDB` privileges the pooled connection may not grant. Run tests locally
-against SQLite (unset `REC_DATABASE_URL`) — this is a testing convenience,
-not a limitation of the app.
+**Do not run `pytest` while `backend/.env` points `REC_DATABASE_URL` at
+Supabase.** Confirmed during this project's setup: pointing the test runner
+at Supabase makes pytest-django try to create/drop a throwaway test database
+there, which either needs privileges the connecting role may not have, or —
+observed directly — hangs for a long time before failing with a timeout,
+rather than failing fast.
 
-## 9. Configure frontend environment variables
+Override for the one test invocation, which falls back to local SQLite
+(confirmed: full 280-test suite passes this way):
+
+```bash
+# bash / Git Bash
+REC_DATABASE_URL="" python -m pytest -q
+```
+
+```powershell
+# PowerShell
+$env:REC_DATABASE_URL = ""
+python -m pytest -q
+Remove-Item Env:\REC_DATABASE_URL
+```
+
+This only affects that one command's environment — `backend/.env` (and
+therefore `manage.py runserver`) is unaffected and keeps using Supabase.
+
+## 11. Data migration is a separate step — NOT performed yet
+
+Connecting Django to Supabase and running `migrate` created the **schema**
+(empty tables) — confirmed via table introspection. It did **not** copy
+across whatever data already exists in the local SQLite database
+(`backend/rec_aids.sqlite3`) — departments, subjects, uploaded resources,
+user accounts. That is a deliberate, separate action, not performed by this
+phase. When ready:
+
+- Re-run the seed commands (§8) against Supabase for catalogue data that's
+  reproducible from `academics/curricula.py`, or
+- Export/import real data with `python manage.py dumpdata` /
+  `python manage.py loaddata` (not attempted or validated in this phase).
+
+## 12. Configure frontend environment variables
 
 The frontend does not talk to Supabase or to the database directly — it only
-calls the Django API. Usually nothing needs to change here. Only set
-`VITE_API_BASE_URL` (in `frontend/.env`) if the frontend will be deployed
-*separately* from the backend:
-
-```bash
-VITE_API_BASE_URL="https://api.yourcollege.edu"
-```
-
-Leave it unset for the normal same-origin deployment (Django serves the
-built SPA itself — see the `Dockerfile`) or for local development (Vite
-proxies `/api` to `127.0.0.1:8000`).
+calls the Django API. Only set `VITE_API_BASE_URL` (in `frontend/.env`) if
+the frontend will be deployed *separately* from the backend. Leave it unset
+otherwise (same-origin deployment, or local dev with the Vite proxy).
 
 `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` placeholders exist in
-`.env.example` for a *future* phase (if the frontend is ever given direct
-Supabase access, e.g. Supabase Auth). They are not read by any code today —
-leave them unset.
+`.env.example` for a *future* phase and are not read by any code today.
 
-## 10. Start the frontend
+## 13. Start the frontend / 14. Start the backend
 
 ```bash
-cd frontend
-npm install
-npm run dev          # development, http://localhost:5173
-# or
-npm run build         # production build into frontend/dist,
-                       # served by Django itself (see Dockerfile)
+cd frontend && npm install && npm run dev      # or npm run build
+cd backend && python manage.py runserver       # or the Dockerfile's gunicorn command
 ```
 
-## 11. Start the backend
-
-Development:
-
-```bash
-cd backend
-python manage.py runserver
-```
-
-Production (as the `Dockerfile` runs it):
-
-```bash
-python manage.py migrate --no-input
-gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 4
-```
-
-## 12. Verify the database connection
+## 15. Verify the database connection / tables
 
 ```bash
 python manage.py check_db
 ```
 
-or, from the Supabase dashboard: **Table Editor** — the tables created by
-step 6 (`accounts_user`, `academics_department`, `resources_resource`, etc.)
-should be visible there once `migrate` has run.
+or Supabase dashboard → **Table Editor** — all 16 tables (including
+`accounts_user`, `academics_department`, `resources_resource`,
+`whatsapp_wacontact`) are visible there now.
 
-## 13. Future Supabase Storage setup (not done in this phase)
+## 16. Future Supabase Storage setup (not done in this phase)
 
-Uploaded resource files still live on local disk today. To move them to
-Supabase Storage later:
+Uploaded resource files still live on local disk. See
+`docs/supabase-readiness-analysis.md` §13 for the unchanged migration path
+(`REC_S3_*` variables, already read by `settings.py`, not activated).
 
-1. Supabase dashboard → **Storage** → **New bucket**. Keep it **private** —
-   this app never generates public file URLs; every download goes through
-   its own authenticated Django endpoint regardless of where the bytes
-   physically live, and that must stay true.
-2. **Project Settings** → **Storage** → **S3 Connection** for the access
-   key, secret key, endpoint URL and region.
-3. Add to `backend/.env`:
-   ```bash
-   REC_S3_ACCESS_KEY_ID="..."
-   REC_S3_SECRET_ACCESS_KEY="..."
-   REC_S3_BUCKET_NAME="resources"
-   REC_S3_ENDPOINT_URL="https://xxxxxxxxxxxx.supabase.co/storage/v1/s3"
-   REC_S3_REGION_NAME="us-east-1"
-   ```
-4. Restart the backend. New uploads go to the bucket automatically — no code
-   change, since `settings.py` already switches `STORAGES["default"]` to the
-   S3 backend whenever `REC_S3_ACCESS_KEY_ID` is set.
-5. Existing local files are **not** moved automatically — that's a one-time
-   data migration (copy each `Resource.file` into the new storage), to be
-   done deliberately, separately, and only when you're ready.
+## 17. Security precautions
 
-## 14. Security precautions
+- Never commit `backend/.env` or any `.env.*` file — `.gitignore` blocks
+  these except `.env.example`. Verified throughout this phase.
+- The real database password was never displayed, logged, or written to any
+  file by Claude at any point in this project's setup.
+- **A password containing an unencoded reserved character (`#`, `@`, etc.)
+  can produce a Python traceback that echoes a fragment of it** — this
+  happened once during this project's setup via an uncaught `ValueError`
+  from `urllib.parse`, not from any code in this repository. If your own
+  password ever appears in a terminal traceback, chat log, or shared
+  document for any reason, treat it as exposed and rotate it from the
+  Supabase dashboard, the same as any other leaked credential.
+- Never put `REC_DATABASE_URL`, `REC_SECRET_KEY`, or any Supabase
+  **service-role** key in a `VITE_` variable — anything with that prefix is
+  bundled into the JavaScript shipped to every browser. Only an
+  anon/publishable key is ever safe there, and only once a future phase adds
+  a Supabase client to the frontend.
+- `REC_SECRET_KEY` must be unique per environment.
+- Set `REC_ALLOWED_HOSTS` to your real domain in production.
 
-- Never commit `backend/.env` or any `.env.*` file. `.gitignore` already
-  blocks these except `.env.example` (`.env`, `.env.*`, `!.env.example`).
-- Never put `REC_DATABASE_URL`, `REC_SECRET_KEY`, `REC_S3_SECRET_ACCESS_KEY`,
-  or any Supabase **service-role** key in a `VITE_` variable or anywhere in
-  frontend code — anything with the `VITE_` prefix is bundled into the
-  JavaScript shipped to every browser.
-- Only a Supabase **anon/publishable** key is ever safe in the frontend, and
-  only once a future phase actually adds a Supabase client there.
-- Rotate the Supabase database password immediately if it is ever pasted
-  into a chat log, ticket, commit message, or shared document.
-- `REC_SECRET_KEY` must be unique per environment and never reused between
-  local development and Supabase/production — the app refuses to boot with
-  `REC_DEBUG=0` and the default development key (see `settings.py`).
-- Set `REC_ALLOWED_HOSTS` to your real domain in production — the wildcard
-  default only applies when `REC_DEBUG=1`.
-
-## 15. Deployment environment variables (summary)
-
-Required for a Supabase/production deployment:
+## 18. Deployment environment variables (summary)
 
 ```bash
 REC_SECRET_KEY="<generated secret>"
 REC_DEBUG="0"
 REC_ALLOWED_HOSTS="your-domain.example.com"
-REC_DATABASE_URL="postgresql://...supabase.co:6543/postgres?sslmode=require"
+REC_DATABASE_URL="postgresql://postgres.kuzjdhvyvsgiweayrarg:...@<pooler-host>:5432/postgres?sslmode=require"
 ```
 
-Optional, as needed:
-
-```bash
-REC_MEDIA_ROOT=""                 # only if not using S3/Supabase Storage
-REC_S3_ACCESS_KEY_ID=""           # Supabase Storage — see §13
-REC_S3_SECRET_ACCESS_KEY=""
-REC_S3_BUCKET_NAME="resources"
-REC_S3_ENDPOINT_URL=""
-REC_S3_REGION_NAME=""
-REC_CORS_ORIGINS=""               # only if the frontend is hosted separately
-VITE_API_BASE_URL=""              # only if the frontend is hosted separately
-```
-
-Every one of these is already read by the existing codebase — none of this
-required a code change, only configuration.
+Optional: `REC_MEDIA_ROOT`, `REC_S3_*` (Supabase Storage — §16),
+`REC_CORS_ORIGINS` / `VITE_API_BASE_URL` (only if the frontend is hosted
+separately).
