@@ -24,8 +24,8 @@ frontend/.vite/
 
 # Environment — secrets must not be committed
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Legacy database snapshot taken before the migration
 .legacy-backup/
