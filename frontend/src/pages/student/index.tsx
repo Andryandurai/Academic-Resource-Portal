@@ -19,14 +19,17 @@ import {
   DownloadIcon,
   EyeIcon,
   FileIcon,
+  CloseIcon,
   GridIcon,
   LayersIcon,
   SearchIcon,
 } from "../../components/Icons";
-import { api } from "../../services/api";
+import { LogoutButton } from "../../components/LogoutButton";
+import { api, type SubjectQuery } from "../../services/api";
 import { ApiError } from "../../services/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useDepartment } from "../../stores/department";
+import { useSession } from "../../stores/session";
 import { useUi } from "../../stores/ui";
 import {
   CATEGORY_LABELS,
@@ -42,6 +45,7 @@ import {
   type Semester,
   type Stats,
   type Subject,
+  type SubjectFacets,
 } from "../../types";
 
 /* ------------------------------------------------------------------ hooks -- */
@@ -172,22 +176,102 @@ function SubjectSections({
   );
 }
 
-/** Search and filters drive the URL; filtering itself happens in the database. */
-function SubjectFilters({ semesters, showSemester = true }: { semesters: Semester[]; showSemester?: boolean }) {
+const ALL_DEPARTMENTS = "all";
+
+/**
+ * Every filter the catalogue understands, as it lives in the URL.
+ *
+ * The URL is the single source of truth: the bar writes to it, the page reads
+ * from it, and a filtered view is therefore a link you can share, bookmark and
+ * reach with the back button. There is no second copy of the filter state to
+ * fall out of step, and no "Apply" step — changing a control rewrites the query
+ * string, which re-runs the request. The page itself never reloads.
+ */
+const FILTER_KEYS = ["q", "department", "deptq", "semester", "type", "category", "credits"] as const;
+
+/** Translates the URL into the API query. One place, so bar and page agree. */
+function subjectQuery(params: URLSearchParams, fallbackDepartment?: number): SubjectQuery {
+  const explicit = params.get("department");
+  const departmentSearch = params.get("deptq") || undefined;
+  // No department in the URL means "the one the student picked"; ALL_DEPARTMENTS
+  // means they deliberately widened the search to the whole college.
+  //
+  // Typing in the department box is itself a decision to look past your own
+  // department, so it lifts that default. Without this, searching "food" from
+  // inside AI&DS would AND the two and answer zero — which reads as a broken
+  // filter rather than as the contradiction it is.
+  const fallback = departmentSearch ? ALL_DEPARTMENTS : fallbackDepartment ? String(fallbackDepartment) : "";
+  const chosen = explicit ?? fallback;
+  return {
+    search: params.get("q") || undefined,
+    department: chosen && chosen !== ALL_DEPARTMENTS ? chosen : undefined,
+    department_search: departmentSearch,
+    semester_number: params.get("semester") || undefined,
+    course_type: params.get("type") || undefined,
+    category: params.get("category") || undefined,
+    credits: params.get("credits") || undefined,
+  };
+}
+
+/** A removable summary of one active filter. */
+function FilterChip({ label, value, onRemove }: { label: string; value: string; onRemove: () => void }) {
+  return (
+    <span className="chip filterchip">
+      <span className="filterchip__label">{label}</span>
+      <span className="filterchip__value">{value}</span>
+      <button
+        type="button"
+        className="filterchip__x"
+        onClick={onRemove}
+        aria-label={`Remove ${label} filter: ${value}`}
+      >
+        <CloseIcon width={12} height={12} />
+      </button>
+    </span>
+  );
+}
+
+/**
+ * The catalogue filter bar.
+ *
+ * Options come from `/api/subjects/facets/` rather than from a list in this
+ * file, so the bar offers exactly the departments, semesters, categories,
+ * credit values and course types that some course actually has — and each shows
+ * how many courses it would match, counted with its own filter lifted but every
+ * other filter still applied.
+ */
+function SubjectFilters({
+  facets,
+  showSemester = true,
+  showDepartment = false,
+}: {
+  facets: SubjectFacets | null;
+  showSemester?: boolean;
+  showDepartment?: boolean;
+}) {
   const [params, setParams] = useSearchParams();
   const [term, setTerm] = useState(params.get("q") ?? "");
+  const [deptTerm, setDeptTerm] = useState(params.get("deptq") ?? "");
 
   useEffect(() => {
     setTerm(params.get("q") ?? "");
+    setDeptTerm(params.get("deptq") ?? "");
   }, [params]);
 
+  // Both text boxes are debounced, so a request is not fired per keystroke.
   useEffect(() => {
-    const current = params.get("q") ?? "";
-    if (term === current) return;
+    if (term === (params.get("q") ?? "")) return;
     const timer = window.setTimeout(() => update("q", term), 250);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
+
+  useEffect(() => {
+    if (deptTerm === (params.get("deptq") ?? "")) return;
+    const timer = window.setTimeout(() => update("deptq", deptTerm), 250);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deptTerm]);
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -196,88 +280,211 @@ function SubjectFilters({ semesters, showSemester = true }: { semesters: Semeste
     setParams(next, { replace: true });
   }
 
-  const hasFilters = ["q", "semester", "type", "category"].some((key) => params.get(key));
+  function clearAll() {
+    const next = new URLSearchParams(params);
+    FILTER_KEYS.forEach((key) => next.delete(key));
+    setParams(next, { replace: true });
+  }
+
+  // Typing in the department box narrows the dropdown as well as the results,
+  // so a college with nineteen departments stays navigable.
+  const departments = useMemo(() => {
+    const all = facets?.departments ?? [];
+    const needle = deptTerm.trim().toLowerCase();
+    if (!needle) return all;
+    return all.filter(
+      (d) => d.label.toLowerCase().includes(needle) || d.code.toLowerCase().includes(needle),
+    );
+  }, [facets, deptTerm]);
+
+  const option = (label: string, count: number) => `${label} (${count})`;
+
+  /** Active filters, in the order the controls appear, for the chip row. */
+  const active: { key: string; label: string; value: string }[] = [];
+  const push = (key: string, label: string, value: string | undefined | null) => {
+    if (value) active.push({ key, label, value });
+  };
+
+  push("q", "Search", params.get("q"));
+  if (showDepartment) {
+    push("deptq", "Department search", params.get("deptq"));
+    const chosen = params.get("department");
+    if (chosen === ALL_DEPARTMENTS) {
+      push("department", "Department", "All departments");
+    } else if (chosen) {
+      push(
+        "department",
+        "Department",
+        facets?.departments.find((d) => String(d.value) === chosen)?.label ?? chosen,
+      );
+    }
+  }
+  if (showSemester) {
+    const semester = params.get("semester");
+    if (semester) push("semester", "Semester", `Semester ${roman(Number(semester))}`);
+  }
+  const category = params.get("category");
+  if (category) {
+    const label = CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS];
+    push("category", "Category", label ? `${category} — ${label}` : category);
+  }
+  const type = params.get("type");
+  if (type) push("type", "Course type", COURSE_TYPES.find((c) => c.value === type)?.label ?? type);
+  const credits = params.get("credits");
+  if (credits) push("credits", "Credits", credits);
 
   return (
-    <form className="panel filterbar" role="search" onSubmit={(e) => e.preventDefault()}>
-      <div className="searchfield">
-        <span className="searchfield__icon">
-          <SearchIcon width={17} height={17} />
-        </span>
-        <label htmlFor="subject-search" className="sr-only">
-          Search subjects
-        </label>
-        <input
-          id="subject-search"
-          className="input"
-          type="search"
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search subjects by course code or subject name..."
-        />
-      </div>
-
-      {showSemester ? (
-        <>
-          <label htmlFor="f-semester" className="sr-only">Filter by semester</label>
-          <select
-            id="f-semester"
+    <div className="stack-3">
+      <form className="panel filterpanel" role="search" onSubmit={(e) => e.preventDefault()}>
+        <div className="searchfield filterpanel__search">
+          <span className="searchfield__icon">
+            <SearchIcon width={17} height={17} />
+          </span>
+          <label htmlFor="subject-search" className="sr-only">
+            Search subjects
+          </label>
+          <input
+            id="subject-search"
             className="input"
-            value={params.get("semester") ?? ""}
-            onChange={(e) => update("semester", e.target.value)}
-          >
-            <option value="">All semesters</option>
-            {semesters.map((s) => (
-              <option key={s.id} value={String(s.semester_number)}>
-                Semester {roman(s.semester_number)}
-              </option>
+            type="search"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Search by course code, title, department, semester or category..."
+          />
+        </div>
+
+        <div className="filterpanel__controls">
+          {showDepartment ? (
+            <>
+              <div className="field">
+                <label htmlFor="f-deptq">Find a department</label>
+                <input
+                  id="f-deptq"
+                  className="input"
+                  type="search"
+                  value={deptTerm}
+                  onChange={(e) => setDeptTerm(e.target.value)}
+                  placeholder="e.g. cyber, food, mech"
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="f-department">Department</label>
+                <select
+                  id="f-department"
+                  className="input"
+                  value={params.get("department") ?? ""}
+                  onChange={(e) => update("department", e.target.value)}
+                >
+                  <option value="">My department</option>
+                  <option value={ALL_DEPARTMENTS}>All departments</option>
+                  {departments.map((d) => (
+                    <option key={d.value} value={String(d.value)}>
+                      {option(d.label, d.count)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : null}
+
+          {showSemester ? (
+            <div className="field">
+              <label htmlFor="f-semester">Semester</label>
+              <select
+                id="f-semester"
+                className="input"
+                value={params.get("semester") ?? ""}
+                onChange={(e) => update("semester", e.target.value)}
+              >
+                <option value="">All semesters</option>
+                {(facets?.semesters ?? []).map((s) => (
+                  <option key={s.value} value={String(s.value)}>
+                    {option(`Semester ${roman(s.value)}`, s.count)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="field">
+            <label htmlFor="f-category">Category</label>
+            <select
+              id="f-category"
+              className="input"
+              value={params.get("category") ?? ""}
+              onChange={(e) => update("category", e.target.value)}
+            >
+              <option value="">All categories</option>
+              {(facets?.categories ?? []).map((c) => (
+                <option key={c.value} value={c.value}>
+                  {option(`${c.value} — ${c.label}`, c.count)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-type">Course type</label>
+            <select
+              id="f-type"
+              className="input"
+              value={params.get("type") ?? ""}
+              onChange={(e) => update("type", e.target.value)}
+            >
+              <option value="">All course types</option>
+              {(facets?.course_types ?? []).map((c) => (
+                <option key={c.value} value={c.value}>
+                  {option(c.label, c.count)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-credits">Credits</label>
+            <select
+              id="f-credits"
+              className="input"
+              value={params.get("credits") ?? ""}
+              onChange={(e) => update("credits", e.target.value)}
+            >
+              <option value="">Any credits</option>
+              {(facets?.credits ?? []).map((c) => (
+                <option key={c.value} value={String(c.value)}>
+                  {option(`${c.value} credit${c.value === 1 ? "" : "s"}`, c.count)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </form>
+
+      {active.length ? (
+        <div className="filterchips">
+          <div className="filterchips__list">
+            <span className="muted nowrap">Active filters</span>
+            {active.map((chip) => (
+              <FilterChip
+                key={chip.key}
+                label={chip.label}
+                value={chip.value}
+                onRemove={() => update(chip.key, "")}
+              />
             ))}
-          </select>
-        </>
+          </div>
+          <button type="button" className="btn btn--sm nowrap" onClick={clearAll}>
+            Clear all filters
+          </button>
+        </div>
       ) : null}
-
-      <label htmlFor="f-type" className="sr-only">Filter by course type</label>
-      <select
-        id="f-type"
-        className="input"
-        value={params.get("type") ?? ""}
-        onChange={(e) => update("type", e.target.value)}
-      >
-        <option value="">All course types</option>
-        {COURSE_TYPES.map((c) => (
-          <option key={c.value} value={c.value}>{c.label}</option>
-        ))}
-      </select>
-
-      <label htmlFor="f-category" className="sr-only">Filter by category</label>
-      <select
-        id="f-category"
-        className="input"
-        value={params.get("category") ?? ""}
-        onChange={(e) => update("category", e.target.value)}
-      >
-        <option value="">All categories</option>
-        {Object.entries(CATEGORY_LABELS).map(([code, label]) => (
-          <option key={code} value={code}>
-            {code} — {label}
-          </option>
-        ))}
-      </select>
-
-      <button
-        type="button"
-        className="btn"
-        disabled={!hasFilters}
-        onClick={() => setParams(new URLSearchParams(), { replace: true })}
-      >
-        Clear
-      </button>
-    </form>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ pages -- */
 export function Dashboard() {
+  const user = useSession((state) => state.user);
   const department = useDepartment((state) => state.selected);
   const departmentId = department?.id;
   useDocumentTitle(department?.name, "Dashboard");
@@ -303,7 +510,7 @@ export function Dashboard() {
     <>
       <PageHead
         eyebrow={department?.name ?? "Academic Resource Portal"}
-        title="Welcome"
+        title={`Welcome back, ${user?.name.split(" ")[0] ?? "Student"}`}
         lead="Access your department's semester-wise subjects, academic notes and examination resources in one place."
         actions={
           <>
@@ -434,22 +641,23 @@ export function SemesterDetail() {
   const [params] = useSearchParams();
   const query = params.toString();
 
-  const { data, loading, error } = useAsync(
-    async () => ({
+  const { data, loading, error } = useAsync(async () => {
+    // The route fixes both the semester and, through it, the department — so
+    // the semester and department filters are neither offered nor applied here.
+    // Carrying a department over from a cross-department search would contradict
+    // the semester in the URL and empty the page.
+    const filters = {
+      ...subjectQuery(params, departmentId),
+      semester_number: undefined,
+      department: undefined,
+      department_search: undefined,
+    };
+    return {
       semester: await api.semesters.get(semesterId!),
-      semesters: await api.semesters.list(departmentId),
-      subjects: (
-        await api.subjects.list({
-          department: departmentId,
-          semester: semesterId,
-          search: params.get("q") ?? undefined,
-          course_type: params.get("type") ?? undefined,
-          category: params.get("category") ?? undefined,
-        })
-      ).results,
-    }),
-    [semesterId, query],
-  );
+      facets: await api.subjects.facets({ ...filters, semester: semesterId }),
+      subjects: (await api.subjects.list({ ...filters, semester: semesterId })).results,
+    };
+  }, [semesterId, query, departmentId]);
 
   if (loading) return <Loading label="Loading subjects..." />;
   if (error || !data) return <Notice kind="crit">{error}</Notice>;
@@ -468,7 +676,8 @@ export function SemesterDetail() {
         title={data.semester.name}
         lead={`${data.semester.subject_count} subject${data.semester.subject_count === 1 ? "" : "s"} in this semester.`}
       />
-      <SubjectFilters semesters={data.semesters} showSemester={false} />
+      <SubjectFilters facets={data.facets} showSemester={false} />
+      <ResultCount matching={data.facets.count} of={data.semester.subject_count} noun="subject" />
       <SubjectSections
         subjects={data.subjects}
         // A semester can legitimately hold no courses — Food Technology's final
@@ -488,6 +697,22 @@ export function SemesterDetail() {
   );
 }
 
+/** How many courses the current filters match, out of how many are reachable. */
+function ResultCount({ matching, of, noun }: { matching: number; of: number; noun: string }) {
+  const plural = (n: number) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  return (
+    <p className="muted resultcount" role="status" aria-live="polite">
+      {matching === of ? (
+        <>Showing all {plural(of)}.</>
+      ) : (
+        <>
+          <b className="tabular">{plural(matching)}</b> of {of} match the current filters.
+        </>
+      )}
+    </p>
+  );
+}
+
 export function Subjects() {
   const selectedDepartment = useDepartment((state) => state.selected);
   const departmentId = selectedDepartment?.id;
@@ -496,43 +721,35 @@ export function Subjects() {
   const [params] = useSearchParams();
   const query = params.toString();
 
-  const { data, loading, error } = useAsync(
-    async () => ({
-      semesters: await api.semesters.list(departmentId),
-      page: await api.subjects.list({
-        department: departmentId,
-        search: params.get("q") ?? undefined,
-        semester_number: params.get("semester") ?? undefined,
-        course_type: params.get("type") ?? undefined,
-        category: params.get("category") ?? undefined,
-      }),
-    }),
-    [query],
-  );
-
-  const total = useMemo(
-    () => data?.semesters.reduce((sum, s) => sum + s.subject_count, 0) ?? 0,
-    [data],
-  );
+  const { data, loading, error } = useAsync(async () => {
+    const filters = subjectQuery(params, departmentId);
+    return {
+      // Facets are fetched with the same filters, so every option's count
+      // describes the set the student is actually looking at.
+      facets: await api.subjects.facets(filters),
+      page: await api.subjects.list(filters),
+    };
+  }, [query, departmentId]);
 
   if (loading) return <Loading label="Loading subjects..." />;
   if (error || !data) return <Notice kind="crit">{error}</Notice>;
 
-  const filtered = Boolean(query);
+  // "Out of" means the catalogue the current department selection exposes —
+  // the whole college when the student has widened it to all departments.
+  const reachable = params.get("department") === ALL_DEPARTMENTS
+    ? data.facets.total
+    : (data.facets.departments.find((d) => String(d.value) === (params.get("department") ?? String(departmentId)))
+        ?.total ?? data.facets.total);
 
   return (
     <>
       <PageHead
         eyebrow={departmentName ?? "Subjects"}
         title="Subjects"
-        lead="Search and filter your department's subject catalogue."
+        lead="Search and filter the subject catalogue — by department, semester, category, credits and course type."
       />
-      <SubjectFilters semesters={data.semesters} />
-      <p className="muted" role="status" aria-live="polite">
-        {filtered
-          ? `${data.page.count} of ${total} subjects match your filters.`
-          : `Showing all ${total} subjects.`}
-      </p>
+      <SubjectFilters facets={data.facets} showDepartment />
+      <ResultCount matching={data.page.count} of={reachable} noun="subject" />
       <SubjectSections subjects={data.page.results} showSemester />
     </>
   );
@@ -792,6 +1009,35 @@ export function ResourceCategory() {
           ))}
         </ul>
       )}
+    </>
+  );
+}
+
+export function Profile() {
+  const user = useSession((state) => state.user);
+  const department = useDepartment((state) => state.selected);
+  useDocumentTitle(department?.name, "Profile");
+  if (!user) return null;
+
+  return (
+    <>
+      <PageHead eyebrow="Account" title="Profile" lead="Your account details for the portal." />
+      <section className="panel" style={{ maxWidth: "48rem" }}>
+        <dl className="factgrid">
+          <Fact label="Name" value={user.name} />
+          <Fact label="Email" value={user.email} />
+          <Fact label="Role" value="Student" />
+          <Fact label="Department" value={department?.name ?? user.department_name ?? "Not selected"} />
+          <Fact label="Institution" value="Rajalakshmi Engineering College" />
+          <Fact label="Member since" value={formatDate(user.created_at)} />
+        </dl>
+        <div className="row row--between" style={{ marginTop: "var(--s5)" }}>
+          <p className="muted" style={{ margin: 0 }}>
+            Students have read-only access to published academic resources.
+          </p>
+          <LogoutButton variant="student" className="btn" />
+        </div>
+      </section>
     </>
   );
 }

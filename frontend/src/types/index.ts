@@ -48,7 +48,7 @@ export const COURSE_TYPES: { value: CourseType; label: string; short: string }[]
   { value: "LABORATORY", label: "Laboratory", short: "LAB" },
 ];
 export type CourseCategory =
-  | "HS" | "HSMC" | "HSM" | "MC" | "BS" | "ES" | "PC" | "OE" | "PE";
+  | "HS" | "HSMC" | "HSM" | "MC" | "MS" | "BS" | "ES" | "PC" | "OE" | "PE";
 
 export interface Subject {
   id: number;
@@ -109,6 +109,39 @@ export interface Resource {
   uploaded_by_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** One selectable value in the filter bar, with how many courses it matches. */
+export interface FacetOption<V> {
+  value: V;
+  label: string;
+  /** Courses with this value in the whole catalogue. */
+  total: number;
+  /** Courses with this value under the filters currently applied. */
+  count: number;
+}
+
+export interface DepartmentFacet extends FacetOption<number> {
+  code: string;
+}
+
+/**
+ * The filter options, derived from the catalogue by the API.
+ *
+ * Nothing here is a hard-coded list: a credit value, category or course type
+ * appears only because some course actually has it, so the filter bar cannot
+ * offer a choice that always answers "0 results".
+ */
+export interface SubjectFacets {
+  /** Courses matching the filters currently applied. */
+  count: number;
+  /** Courses in the whole catalogue. */
+  total: number;
+  departments: DepartmentFacet[];
+  semesters: FacetOption<number>[];
+  categories: FacetOption<string>[];
+  course_types: FacetOption<string>[];
+  credits: FacetOption<number>[];
 }
 
 export interface Stats {
@@ -203,6 +236,7 @@ export const CATEGORY_LABELS: Record<CourseCategory, string> = {
   HSMC: "Humanities, Social Sciences & Management",
   HSM: "Humanities & Management",
   MC: "Mandatory Course",
+  MS: "Management Studies",
   BS: "Basic Sciences",
   ES: "Engineering Sciences",
   PC: "Professional Core",

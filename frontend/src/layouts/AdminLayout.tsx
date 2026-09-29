@@ -48,7 +48,7 @@ export function AdminLayout() {
           <p className="label">Signed in as</p>
           <p className="nowrap" style={{ fontWeight: 600, margin: 0 }}>{user?.name}</p>
           <p className="meta">Faculty</p>
-          <LogoutButton className="btn btn--sm btn--block" />
+          <LogoutButton variant="admin" className="btn btn--sm btn--block" />
         </div>
       </aside>
 

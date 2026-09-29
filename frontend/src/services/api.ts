@@ -10,18 +10,32 @@ import type {
   Semester,
   Stats,
   Subject,
+  SubjectFacets,
   User,
   UserRow,
 } from "../types";
 
+/**
+ * Every filter the subject endpoint understands.
+ *
+ * The list-valued ones accept a single value or a comma-separated list — the
+ * backend parses both — so `category: "PC"` and `category: "PC,PE"` are equally
+ * valid and the older single-value call sites keep working.
+ */
 export interface SubjectQuery {
   search?: string;
   /** Scoping happens in the database — see academics/filters.py. */
   department?: number | string;
+  department_code?: string;
+  /** Type-to-find across department names and codes. */
+  department_search?: string;
   semester?: number | string;
   semester_number?: number | string;
   course_type?: string;
   category?: string;
+  credits?: number | string;
+  credits_min?: number | string;
+  credits_max?: number | string;
   page_size?: number;
 }
 
@@ -38,6 +52,12 @@ export interface ResourceQuery {
 
 export const api = {
   auth: {
+    login: (email: string, password: string) =>
+      request<AuthResponse>("/api/auth/login/", {
+        method: "POST",
+        body: { email, password },
+        auth: false,
+      }),
     adminLogin: (email: string, password: string) =>
       request<AuthResponse>("/api/auth/admin/login/", {
         method: "POST",
@@ -71,6 +91,9 @@ export const api = {
         query: { page_size: 200, ...query },
       }),
     get: (id: number | string) => request<Subject>(`/api/subjects/${id}/`),
+    /** Filter options and per-option match counts, for the same query. */
+    facets: (query: SubjectQuery = {}) =>
+      request<SubjectFacets>("/api/subjects/facets/", { query: { ...query } }),
     resourceCounts: (id: number | string) =>
       request<ResourceCounts>(`/api/subjects/${id}/resource-counts/`),
     create: (body: Record<string, unknown>) =>

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Brand, EmptyState, Footer, Loading, Notice, PageHead, Toaster } from "../../components/common";
+import { CascadingResourceFilter } from "../../components/CascadingResourceFilter";
+import { LogoutButton } from "../../components/LogoutButton";
 import { BookIcon, ChevronRightIcon, LayersIcon, SearchIcon } from "../../components/Icons";
 import { api } from "../../services/api";
 import { ApiError } from "../../services/client";
@@ -9,7 +11,7 @@ import { useDepartment } from "../../stores/department";
 import type { Department } from "../../types";
 
 /**
- * Department selection — the first step for a student opening the portal.
+ * Department selection — the first step after a student signs in.
  *
  * The list comes from the API, never from a constant in this file: adding a
  * department later is a database change, and this page picks it up with no
@@ -65,6 +67,7 @@ export function Departments() {
       <header className="topbar">
         <div className="topbar__inner">
           <Brand to="/departments" />
+          <LogoutButton variant="student" />
         </div>
       </header>
 
@@ -92,6 +95,11 @@ export function Departments() {
             autoComplete="off"
           />
         </form>
+
+        {/* Department -> Semester -> Course -> Unit. Sits below the search box
+            and shares its term, so the box narrows both the department cards
+            (as it always has) and whatever the filters have selected. */}
+        <CascadingResourceFilter search={term} />
 
         {error ? <Notice kind="crit">{error}</Notice> : null}
         {!departments && !error ? <Loading label="Loading departments..." /> : null}

@@ -6,8 +6,27 @@ import { ApiError } from "../../services/client";
 import { useSession } from "../../stores/session";
 import { useUi } from "../../stores/ui";
 
-/** Faculty sign-in — the only login this portal has. Students browse without one. */
-export function Login() {
+/**
+ * The two accounts this deployment ships with.
+ *
+ * Listed in the UI on purpose: this is a demonstration portal, and the point is
+ * that a reviewer can sign in without being handed credentials out of band.
+ * That also means these credentials are public — they are in the JavaScript
+ * bundle — so neither account should ever hold anything private.
+ */
+const DEMO_ACCOUNTS = [
+  { role: "Student", email: "student@rec.local", password: "andyandy1234", admin: false },
+  { role: "Administrator", email: "admin@rec.local", password: "trial1234", admin: true },
+] as const;
+
+/**
+ * Student and administrator sign-in.
+ *
+ * One component, two modes: the administrator variant posts to the admin
+ * endpoint, which refuses to issue a token to a student account even when the
+ * credentials are correct.
+ */
+export function Login({ admin = false }: { admin?: boolean }) {
   const login = useSession((state) => state.login);
   const toast = useUi((state) => state.toast);
   const navigate = useNavigate();
@@ -25,9 +44,15 @@ export function Login() {
     setError(null);
     setPending(true);
     try {
-      const user = await login(email, password);
+      const user = await login(email, password, admin);
       toast(`Signed in as ${user.name}.`, "ok");
-      navigate(requested ?? "/faculty/dashboard", { replace: true });
+      // A student picks their department first; no department is the default.
+      const fallback = user.is_admin ? "/faculty/dashboard" : "/departments";
+      // A student must never be dropped into a faculty path by a crafted
+      // redirect target.
+      const target =
+        requested && (user.is_admin || !requested.startsWith("/faculty")) ? requested : fallback;
+      navigate(target, { replace: true });
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -41,29 +66,33 @@ export function Login() {
 
   return (
     <div className="authwrap">
-      <Brand to="/" admin />
+      <Brand to="/" admin={admin} />
 
       <div className="panel authcard">
         <div className="stack-4">
-          <span className="chip chip--data">Restricted area</span>
+          {admin ? <span className="chip chip--data">Restricted area</span> : null}
           <div>
-            <h1 style={{ margin: 0 }}>Faculty Login</h1>
-            <p className="muted">Sign in to manage subjects and publish academic resources for students.</p>
+            <h1 style={{ margin: 0 }}>{admin ? "Administrator Login" : "Student Login"}</h1>
+            <p className="muted">
+              {admin
+                ? "Sign in to manage subjects and publish academic resources."
+                : "Sign in to access your semester subjects, unit notes and examination resources."}
+            </p>
           </div>
 
           {error ? <Notice kind="crit">{error}</Notice> : null}
 
           <form onSubmit={onSubmit} className="stack-4" noValidate>
             <div className="field">
-              <label htmlFor="email">Faculty email</label>
+              <label htmlFor="email">{admin ? "Administrator email" : "Email address"}</label>
               <input
                 id="email"
                 className="input"
                 type="email"
-                autoComplete="username"
+                autoComplete={admin ? "username" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@rajalakshmi.edu.in"
+                placeholder={admin ? "admin@rec.local" : "you@rajalakshmi.edu.in"}
                 required
               />
             </div>
@@ -82,11 +111,54 @@ export function Login() {
             </div>
 
             <button type="submit" className="btn btn--primary btn--block" disabled={pending}>
-              {pending ? "Signing in..." : "Faculty Login"}
+              {pending ? "Signing in..." : admin ? "Admin Login" : "Login"}
             </button>
           </form>
 
-          <Link to="/" className="muted">Back to the student portal</Link>
+          {/* Only the accounts that this form will actually accept: the admin
+              endpoint refuses a student outright, so offering one there would
+              be a button that always fails. */}
+          <div className="demoaccounts">
+            <p className="demoaccounts__title">Demonstration accounts</p>
+            {DEMO_ACCOUNTS.filter((account) => !admin || account.admin).map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                className="demoaccount"
+                onClick={() => {
+                  setEmail(account.email);
+                  setPassword(account.password);
+                  setError(null);
+                }}
+              >
+                <span className="demoaccount__role">{account.role}</span>
+                <span className="demoaccount__creds">
+                  <span>{account.email}</span>
+                  <span className="demoaccount__pw">{account.password}</span>
+                </span>
+                <span className="demoaccount__action" aria-hidden="true">
+                  Use
+                </span>
+              </button>
+            ))}
+            <p className="meta demoaccounts__hint">
+              Click an account to fill the form, then press
+              {admin ? " Admin Login" : " Login"}.
+            </p>
+          </div>
+
+          {/* Self-registration is deliberately absent: accounts are
+              provisioned on the server, so there is no public path to creating
+              one. */}
+          <div className="row row--between">
+            {admin ? (
+              <Link to="/login">Student login</Link>
+            ) : (
+              <Link to="/faculty" className="muted">
+                Administrator
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 

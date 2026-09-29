@@ -1,18 +1,22 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { Brand, Footer, Toaster } from "../components/common";
-import { CloseIcon, MenuIcon } from "../components/Icons";
+import { CloseIcon, MenuIcon, UserIcon } from "../components/Icons";
+import { LogoutButton } from "../components/LogoutButton";
 import { useDepartment } from "../stores/department";
+import { useSession } from "../stores/session";
 import { useUi } from "../stores/ui";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/semesters", label: "Semesters" },
   { to: "/subjects", label: "Subjects" },
+  { to: "/profile", label: "Profile" },
 ];
 
 /** Student shell: horizontal navigation on desktop, a drawer on small screens. */
 export function StudentLayout() {
+  const user = useSession((state) => state.user);
   const department = useDepartment((state) => state.selected);
   const navOpen = useUi((state) => state.navOpen);
   const toggleNav = useUi((state) => state.toggleNav);
@@ -39,6 +43,13 @@ export function StudentLayout() {
           <nav className="topnav topnav--desktop" aria-label="Primary">
             {links}
           </nav>
+          <div className="row row--tight topbar__account">
+            <span className="row row--tight muted">
+              <UserIcon width={16} height={16} aria-hidden="true" />
+              <span className="nowrap">{user?.name}</span>
+            </span>
+            <LogoutButton variant="student" />
+          </div>
           <button
             type="button"
             className="btn btn--sm only-mobile"
@@ -53,6 +64,8 @@ export function StudentLayout() {
         {navOpen ? (
           <nav id="student-nav" className="topnav topnav--mobile" aria-label="Mobile">
             {links}
+            <hr className="rule" />
+            <LogoutButton variant="student" className="btn btn--sm btn--block" />
           </nav>
         ) : null}
       </header>

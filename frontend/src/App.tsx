@@ -15,16 +15,23 @@ import {
   AdminSubjects,
 } from "./pages/admin";
 import { Login } from "./pages/auth/Login";
+import { Landing } from "./pages/Landing";
 import { DepartmentPending, Departments } from "./pages/student/Departments";
 import {
   Dashboard,
+  Profile,
   ResourceCategory,
   SemesterDetail,
   Semesters,
   SubjectDetail,
   Subjects,
 } from "./pages/student";
-import { RedirectIfAuthenticated, RequireAdmin, RequireDepartment } from "./routes/guards";
+import {
+  RedirectIfAuthenticated,
+  RequireAdmin,
+  RequireAuth,
+  RequireDepartment,
+} from "./routes/guards";
 import { useSession } from "./stores/session";
 
 function Forbidden() {
@@ -68,8 +75,8 @@ function NotFound() {
 export function App() {
   const hydrate = useSession((state) => state.hydrate);
 
-  // Re-validates a persisted faculty token against the API before the first
-  // protected route renders, so a revoked account is caught on boot.
+  // Re-validates a persisted token against the API before the first
+  // protected route renders, so a revoked or demoted account is caught on boot.
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
@@ -78,20 +85,44 @@ export function App() {
     <BrowserRouter>
       <a href="#main" className="sr-only">Skip to main content</a>
       <Routes>
-        {/* Students: no sign-in. The dashboard is the landing page; a student
-            who has not chosen a department yet is sent to the picker first. */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/departments" element={<Departments />} />
-        <Route element={<StudentLayout />}>
+        {/* Public */}
+        <Route path="/" element={<Landing />} />
+        <Route
+          path="/login"
+          element={
+            <RedirectIfAuthenticated>
+              <Login />
+            </RedirectIfAuthenticated>
+          }
+        />
+
+        {/* Department selection — the first step after a student signs in. */}
+        <Route
+          path="/departments"
+          element={
+            <RequireAuth>
+              <Departments />
+            </RequireAuth>
+          }
+        />
+        <Route
+          element={
+            <RequireAuth>
+              <StudentLayout />
+            </RequireAuth>
+          }
+        >
           {/* Outside RequireDepartment: this is where a department with no
               curriculum yet lands, so requiring one would loop. */}
           <Route path="/departments/:departmentId" element={<DepartmentPending />} />
         </Route>
         <Route
           element={
-            <RequireDepartment>
-              <StudentLayout />
-            </RequireDepartment>
+            <RequireAuth>
+              <RequireDepartment>
+                <StudentLayout />
+              </RequireDepartment>
+            </RequireAuth>
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
@@ -103,14 +134,15 @@ export function App() {
             path="/subjects/:subjectId/resources/:resourceType"
             element={<ResourceCategory />}
           />
+          <Route path="/profile" element={<Profile />} />
         </Route>
 
-        {/* Faculty: the only login. */}
+        {/* Faculty: sign in at /faculty, everything else scoped under it. */}
         <Route
           path="/faculty"
           element={
             <RedirectIfAuthenticated>
-              <Login />
+              <Login admin />
             </RedirectIfAuthenticated>
           }
         />
@@ -133,8 +165,8 @@ export function App() {
 
         {/* Old links and bookmarks. */}
         <Route path="/admin/*" element={<Navigate to="/faculty" replace />} />
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/register" element={<Navigate to="/" replace />} />
+        <Route path="/admin/login" element={<Navigate to="/faculty" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route path="/forbidden" element={<Forbidden />} />
         <Route path="/index.html" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />

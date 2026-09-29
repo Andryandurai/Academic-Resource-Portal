@@ -592,3 +592,98 @@ a.subjectcard, a.subjectcard:hover { text-decoration: none; }
    title wraps at the card edge rather than at a narrow shrink-to-fit column. */
 .sectionhead > :first-child { flex: 1 1 14rem; min-width: 0; }
 .sectionhead > :first-child p { max-width: none; }
+
+/* --- catalogue filter panel ------------------------------------------------ */
+/* One column of search over a self-sizing row of dropdowns. `auto-fit` with a
+   minimum means the controls reflow from five across to one per row without a
+   breakpoint per layout, so a new filter needs no CSS change. */
+.filterpanel { display: grid; gap: var(--s3); }
+.filterpanel__search { width: 100%; }
+.filterpanel__controls {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.filterpanel .field { gap: 6px; }
+.filterpanel .field label {
+  font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+
+.filterchips {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: var(--s2);
+}
+.filterchips__list { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1); }
+
+.filterchip { text-transform: none; letter-spacing: 0; font-weight: 600; padding-right: 4px; }
+.filterchip__label {
+  font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.filterchip__value { color: var(--ink); }
+.filterchip__x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-3); cursor: pointer;
+}
+.filterchip__x:hover { background: var(--ink); color: var(--paper); }
+.filterchip__x:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.resultcount { margin: 0; }
+
+@media (max-width: 560px) {
+  .filterchips { align-items: stretch; flex-direction: column; }
+  .filterchips .btn { width: 100%; }
+}
+
+/* --- cascading Department -> Semester -> Course -> Unit filter ------------- */
+/* A disabled level must read as "not yet available", not as "empty": the
+   cascade depends on the reader seeing that its parent has to be chosen first. */
+.input:disabled,
+select.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--paper-sunken);
+  color: var(--ink-4);
+}
+
+.filterpath {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 0; padding-top: var(--s2); border-top: 1px solid var(--line-faint);
+  font-size: var(--fs-small);
+}
+.filterpath__step { font-weight: 700; color: var(--ink); }
+.filterpath__arrow { color: var(--ink-4); padding: 0 6px; }
+
+/* --- demonstration accounts on the login screens --------------------------- */
+/* A row per account: click to fill the form. Styled as a control rather than a
+   note, because it is one — the whole row is the button. */
+.demoaccounts { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--line-faint); }
+.demoaccounts__title {
+  margin: 0; font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.demoaccounts__hint { margin: 0; }
+
+.demoaccount {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 12px; border: 1.5px solid var(--line); border-radius: var(--radius);
+  background: var(--paper-sunken); color: var(--ink); font: inherit;
+}
+.demoaccount:hover { border-color: var(--ink); background: var(--paper-raised); }
+.demoaccount:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.demoaccount__role { font-weight: 800; font-size: var(--fs-small); flex: none; }
+.demoaccount__creds { display: grid; gap: 1px; min-width: 0; font-size: var(--fs-small); }
+.demoaccount__creds > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.demoaccount__pw { color: var(--ink-3); font-family: var(--font-mono, monospace); }
+.demoaccount__action {
+  flex: none; font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+
+@media (max-width: 420px) {
+  .demoaccount { flex-wrap: wrap; }
+  .demoaccount__action { margin-left: auto; }
+}

@@ -27,7 +27,7 @@ interface SessionState {
 
   isAuthenticated(): boolean;
   role(): Role | null;
-  login(email: string, password: string): Promise<User>;
+  login(email: string, password: string, asAdmin?: boolean): Promise<User>;
   logout(): Promise<void>;
   hydrate(): Promise<void>;
 }
@@ -43,8 +43,10 @@ export const useSession = create<SessionState>()(
       isAuthenticated: () => Boolean(get().accessToken && get().user),
       role: () => get().user?.role ?? null,
 
-      async login(email, password) {
-        const response: AuthResponse = await api.auth.adminLogin(email, password);
+      async login(email, password, asAdmin = false) {
+        const response: AuthResponse = asAdmin
+          ? await api.auth.adminLogin(email, password)
+          : await api.auth.login(email, password);
         applyTokens(response);
         set({
           user: response.user,
